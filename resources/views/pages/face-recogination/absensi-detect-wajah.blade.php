@@ -67,8 +67,8 @@
         </div>
 
         <div class="button-container">
-            <button id="absenMasuk" disabled>Absen Masuk</button>
-            <button id="absenPulang" disabled>Absen Pulang</button>
+            <button id="absenMasuk">Absen Masuk</button>
+            <button id="absenPulang">Absen Pulang</button>
         </div>
 </body>
 

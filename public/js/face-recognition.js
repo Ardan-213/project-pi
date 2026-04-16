@@ -1,23 +1,23 @@
-let recognizedName = "";
+let recognizedName = null;
 
 // --- Load model saat halaman dimuat
 window.addEventListener("DOMContentLoaded", async () => {
     await loadModels();
     await startVideo();
-    setupAbsenButtons(); // setup listener hanya sekali
+    setupAbsenButtons();
 });
 
-// --- Fungsi untuk load model face-api.js
+// --- Load model face-api.js
 async function loadModels() {
     await Promise.all([
         faceapi.nets.tinyFaceDetector.loadFromUri("/models"),
         faceapi.nets.faceLandmark68Net.loadFromUri("/models"),
         faceapi.nets.faceRecognitionNet.loadFromUri("/models"),
     ]);
-    console.log("Model face-api.js sudah dimuat.");
+    console.log("✅ Model face-api.js sudah dimuat.");
 }
 
-// --- Fungsi untuk mulai video dan deteksi wajah
+// --- Start kamera + face detection
 async function startVideo() {
     const video = document.getElementById("video");
 
@@ -27,7 +27,7 @@ async function startVideo() {
         });
         video.srcObject = stream;
     } catch (err) {
-        console.error("Tidak bisa mengakses kamera:", err);
+        console.error("❌ Tidak bisa akses kamera:", err);
         alert("Gagal mengakses kamera.");
         return;
     }
@@ -41,12 +41,14 @@ async function startVideo() {
             width: video.videoWidth,
             height: video.videoHeight,
         };
+
         faceapi.matchDimensions(canvas, displaySize);
 
         const labeledDescriptors = await loadLabeledDescriptors();
         const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.45);
 
-        const sent = [];
+        let detectedNames = new Set();
+        let unknownShown = false;
 
         setInterval(async () => {
             const detections = await faceapi
@@ -56,64 +58,87 @@ async function startVideo() {
 
             const resizedDetections = faceapi.resizeResults(
                 detections,
-                displaySize
+                displaySize,
             );
+
             canvas
                 .getContext("2d")
                 .clearRect(0, 0, canvas.width, canvas.height);
 
+            // ❗ Jika tidak ada wajah
+            if (resizedDetections.length === 0) {
+                recognizedName = null;
+                document.getElementById("absenMasuk").disabled = true;
+                document.getElementById("absenPulang").disabled = true;
+                return;
+            }
+
             resizedDetections.forEach((detection) => {
                 const bestMatch = faceMatcher.findBestMatch(
-                    detection.descriptor
+                    detection.descriptor,
                 );
+
                 const box = detection.detection.box;
+                const similarity = ((1 - bestMatch.distance) * 100).toFixed(2);
 
                 let label;
-                let similarity = ((1 - bestMatch.distance) * 100).toFixed(2); // konversi ke persentase
 
+                // ✅ WAJAH DIKENALI
                 if (bestMatch.distance < 0.45) {
                     label = `${bestMatch.label} (${similarity}%)`;
+
+                    recognizedName = bestMatch.label;
+
+                    // enable tombol
+                    document.getElementById("absenMasuk").disabled = false;
+                    document.getElementById("absenPulang").disabled = false;
+
+                    if (!detectedNames.has(bestMatch.label)) {
+                        detectedNames.add(bestMatch.label);
+                        console.log("✅ Wajah dikenali:", recognizedName);
+                    }
+
+                    unknownShown = false;
                 } else {
                     label = `Wajah tidak dikenal (${similarity}%)`;
+
+                    // ❗ JANGAN overwrite recognizedName kalau sudah ada
+                    if (!recognizedName) {
+                        recognizedName = null;
+                    }
+
+                    if (!unknownShown) {
+                        console.log("❌ Wajah tidak dikenali");
+                        unknownShown = true;
+                    }
+
+                    // disable tombol
+                    document.getElementById("absenMasuk").disabled = true;
+                    document.getElementById("absenPulang").disabled = true;
                 }
 
                 const drawBox = new faceapi.draw.DrawBox(box, { label });
                 drawBox.draw(canvas);
-
-                let sent = [];
-                let unknownShown = false; // flag untuk menghindari log berulang jika wajah tidak dikenali
-
-                if (label !== "Wajah tidak dikenal" && !sent.includes(label)) {
-                    sent.push(label);
-                    recognizedName = bestMatch.label; // hanya nama, tanpa similarity
-
-                    // Aktifkan tombol absen
-                    document.getElementById("absenMasuk").disabled = false;
-                    document.getElementById("absenPulang").disabled = false;
-
-                    console.log("Wajah dikenali sebagai:", recognizedName);
-
-                    // Reset flag unknown karena sudah ada yang dikenali
-                    unknownShown = false;
-                } else if (!unknownShown) {
-                    recognizedName = "Tidak diketahui"; // Atur nilai default
-                    console.log(
-                        "Wajah tidak dikenali. recognizedName:",
-                        recognizedName
-                    );
-                    unknownShown = true; // supaya tidak muncul lagi di log
-                }
             });
-        }, 500); // setiap 0.5 detik
+        }, 500);
     });
 }
 
-// --- Fungsi kirim absen
+// --- Kirim absensi
 async function sendAbsen(tipe) {
-    if (!recognizedName) return;
+    console.log("📤 Klik absen, recognizedName:", recognizedName);
 
+    if (!recognizedName) {
+        Swal.fire({
+            icon: "error",
+            title: "Wajah belum dikenali",
+            text: "Silakan hadapkan wajah ke kamera.",
+        });
+        return;
+    }
+
+    const video = document.getElementById("video");
     const krs = video ? video.getAttribute("data-krs") : null;
-    console.log(krs);
 
     try {
         const response = await fetch("/internal/absensi", {
@@ -125,7 +150,7 @@ async function sendAbsen(tipe) {
             body: JSON.stringify({
                 krs: krs,
                 nama: recognizedName,
-                tipe: tipe, // 'masuk' atau 'pulang'
+                tipe: tipe,
             }),
         });
 
@@ -139,19 +164,24 @@ async function sendAbsen(tipe) {
                 timer: 2000,
                 showConfirmButton: false,
             });
-        }
 
-        recognizedName = null;
+            // reset setelah sukses
+            recognizedName = null;
+
+            window.location = "/internal/krs";
+        } else {
+            throw new Error("Gagal absensi");
+        }
     } catch (error) {
         Swal.fire({
             icon: "error",
-            title: "Wajah tidak dikenali",
-            text: "Absensi gagal dilakukan!",
+            title: "Absensi gagal",
+            text: "Terjadi kesalahan saat mengirim data.",
         });
     }
 }
 
-// --- Fungsi hanya pasang listener sekali
+// --- Setup tombol
 function setupAbsenButtons() {
     document
         .getElementById("absenMasuk")
@@ -166,26 +196,37 @@ function setupAbsenButtons() {
         });
 }
 
-// --- Ambil deskriptor wajah dari backend Laravel
+// --- Load descriptor dari backend
 async function loadLabeledDescriptors() {
     const res = await fetch("/internal/descriptors");
     const data = await res.json();
 
-    return Promise.all(
-        data.map(
-            (user) =>
+    const labeledDescriptors = [];
+
+    data.forEach((user) => {
+        try {
+            if (!user.descriptor) return;
+            if (!Array.isArray(user.descriptor)) return;
+            if (user.descriptor.length !== 128) return;
+
+            labeledDescriptors.push(
                 new faceapi.LabeledFaceDescriptors(user.name, [
                     new Float32Array(user.descriptor),
-                ])
-        )
-    );
+                ]),
+            );
+        } catch (e) {
+            console.error("❌ Error parsing descriptor:", user.name, e);
+        }
+    });
+
+    return labeledDescriptors;
 }
 
-// --- Ambil CSRF token dari meta tag
+// --- Ambil CSRF
 function getCsrfToken() {
     return (
         document
             .querySelector('meta[name="csrf-token"]')
-            ?.getAttribute("content") || "{{ csrf_token() }}"
+            ?.getAttribute("content") || ""
     );
 }

@@ -14,11 +14,9 @@
                </a>
                <div class="dropdown-menu dropdown-menu-right">
 
-                   @can('akses halaman pengaturan wajah')
                    <a href="{{ route('daftar-wajah') }}" class="dropdown-item has-icon">
                        <i class="fas fa-cog"></i> Pengaturan Wajah
                    </a>
-                   @endcan
 
                    <div class="dropdown-divider"></div>
                    <center>
