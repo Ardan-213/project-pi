@@ -13,7 +13,10 @@ class FaceController extends Controller
 {
     public function halaman_deteksi_absensi($id)
     {
-        $krs = DB::table('krs')->where('id', $id)->first();
+        $krs = DB::table('krs')
+            ->select('krs.*', 'mahasiswa.nama as nama_mahasiswa')
+            ->join('mahasiswa', 'mahasiswa.id', '=', 'krs.mahasiswa_id')
+            ->where('krs.id', $id)->first();
 
         return view('pages.face-recogination.absensi-detect-wajah', [
             'krs' => $krs
@@ -76,7 +79,7 @@ class FaceController extends Controller
                 return response()->json([
                     'status' => 'success',
                     'message' => 'Data berhasil simpan'
-                ]);
+                ], 200);
             }
         }
 
@@ -96,5 +99,10 @@ class FaceController extends Controller
                 'message' => 'Data berhasil ditambah'
             ]);
         }
+    }
+
+
+        private function hitungJarak(){
+
     }
 }

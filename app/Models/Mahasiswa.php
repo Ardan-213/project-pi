@@ -20,11 +20,18 @@ class Mahasiswa extends Model
         'users_id'
     ];
 
-    public function users(){
+    public function users()
+    {
         return $this->belongsTo(User::class, 'users_id', 'id');
     }
 
-    public function jurusan(){
+    public function jurusan()
+    {
         return $this->belongsTo(Jurusan::class, 'jurusan_id', 'id');
+    }
+
+    public function krs()
+    {
+        return $this->hasMany(Krs::class, 'mahasiswa_id', 'id');
     }
 }

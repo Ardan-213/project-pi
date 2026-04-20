@@ -1,25 +1,67 @@
 let recognizedName = null;
+let isSubmitting = false;
+let unknownShown = false;
+let hasAbsen = false;
+let ownerName = null;
 
-// --- Load model saat halaman dimuat
+var lokasi = document.getElementById("lokasi");
+
+if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(successCallback, errorCallback);
+}
+
+function successCallback(position) {
+    const lat = position.coords.latitude;
+    const lng = position.coords.longitude;
+
+    lokasi.value = position.coords.latitude + "," + position.coords.longitude;
+
+    var map = L.map("map").setView(
+        [position.coords.latitude, position.coords.longitude],
+        18,
+    );
+
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 17,
+        attribution:
+            '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+
+    var marker = L.marker([
+        position.coords.latitude,
+        position.coords.longitude,
+    ]).addTo(map);
+
+    var circle = L.circle(
+        [position.coords.latitude, position.coords.longitude],
+        { color: "red", fillColor: "#f03", fillOpacity: 0.5, radius: 10 },
+    ).addTo(map);
+}
+
+function errorCallback(err) {
+    console.log(err);
+    lokasi.value = "Gagal ambil lokasi";
+}
+
+// --- Load saat halaman siap
 window.addEventListener("DOMContentLoaded", async () => {
     await loadModels();
     await startVideo();
-    setupAbsenButtons();
 });
 
-// --- Load model face-api.js
+// --- Load model
 async function loadModels() {
     await Promise.all([
         faceapi.nets.tinyFaceDetector.loadFromUri("/models"),
         faceapi.nets.faceLandmark68Net.loadFromUri("/models"),
         faceapi.nets.faceRecognitionNet.loadFromUri("/models"),
     ]);
-    console.log("✅ Model face-api.js sudah dimuat.");
 }
 
-// --- Start kamera + face detection
+// --- Start kamera
 async function startVideo() {
     const video = document.getElementById("video");
+    ownerName = video.getAttribute("data-nama");
 
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -27,14 +69,12 @@ async function startVideo() {
         });
         video.srcObject = stream;
     } catch (err) {
-        console.error("❌ Tidak bisa akses kamera:", err);
-        alert("Gagal mengakses kamera.");
+        alert("Gagal akses kamera");
         return;
     }
 
     video.addEventListener("loadedmetadata", async () => {
         const canvas = faceapi.createCanvasFromMedia(video);
-        canvas.setAttribute("id", "overlay");
         document.getElementById("video-container").appendChild(canvas);
 
         const displaySize = {
@@ -47,9 +87,6 @@ async function startVideo() {
         const labeledDescriptors = await loadLabeledDescriptors();
         const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.45);
 
-        let detectedNames = new Set();
-        let unknownShown = false;
-
         setInterval(async () => {
             const detections = await faceapi
                 .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
@@ -61,19 +98,29 @@ async function startVideo() {
                 displaySize,
             );
 
-            canvas
-                .getContext("2d")
-                .clearRect(0, 0, canvas.width, canvas.height);
+            const ctx = canvas.getContext("2d");
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // ❗ Jika tidak ada wajah
+            //  TIDAK ADA WAJAH (WAJAH DITUTUP / KELUAR FRAME)
             if (resizedDetections.length === 0) {
                 recognizedName = null;
-                document.getElementById("absenMasuk").disabled = true;
-                document.getElementById("absenPulang").disabled = true;
+
+                if (!unknownShown && !hasAbsen) {
+                    unknownShown = true;
+
+                    Swal.fire({
+                        icon: "info",
+                        title: "Wajah tidak terdeteksi",
+                        text: "Silakan hadapkan wajah ke kamera",
+                        timer: 2000,
+                        showConfirmButton: false,
+                    });
+                }
+
                 return;
             }
 
-            resizedDetections.forEach((detection) => {
+            for (const detection of resizedDetections) {
                 const bestMatch = faceMatcher.findBestMatch(
                     detection.descriptor,
                 );
@@ -81,64 +128,60 @@ async function startVideo() {
                 const box = detection.detection.box;
                 const similarity = ((1 - bestMatch.distance) * 100).toFixed(2);
 
-                let label;
+                let label = "";
+                let boxColor = "red";
 
-                // ✅ WAJAH DIKENALI
+                // WAJAH DIKENALI
                 if (bestMatch.distance < 0.45) {
-                    label = `${bestMatch.label} (${similarity}%)`;
-
                     recognizedName = bestMatch.label;
 
-                    // enable tombol
-                    document.getElementById("absenMasuk").disabled = false;
-                    document.getElementById("absenPulang").disabled = false;
+                    //  VALIDASI OWNER
+                    if (recognizedName !== ownerName) {
+                        label = `${recognizedName} (${similarity}%)|Bukan ${ownerName}`;
+                        boxColor = "red";
 
-                    if (!detectedNames.has(bestMatch.label)) {
-                        detectedNames.add(bestMatch.label);
-                        console.log("✅ Wajah dikenali:", recognizedName);
-                    }
-
-                    unknownShown = false;
-                } else {
-                    label = `Wajah tidak dikenal (${similarity}%)`;
-
-                    // ❗ JANGAN overwrite recognizedName kalau sudah ada
-                    if (!recognizedName) {
                         recognizedName = null;
-                    }
+                    } else {
+                        //  OWNER VALID
+                        label = `${recognizedName} (${similarity}%)`;
+                        boxColor = "green";
+                        unknownShown = false;
 
-                    if (!unknownShown) {
-                        console.log("❌ Wajah tidak dikenali");
-                        unknownShown = true;
-                    }
+                        // 🚀 AUTO ABSEN
+                        if (!isSubmitting && !hasAbsen) {
+                            isSubmitting = true;
 
-                    // disable tombol
-                    document.getElementById("absenMasuk").disabled = true;
-                    document.getElementById("absenPulang").disabled = true;
+                            await sendAbsen("masuk");
+
+                            setTimeout(() => {
+                                isSubmitting = false;
+                            }, 5000);
+                        }
+                    }
+                } else {
+                    label = `Tidak dikenal (${similarity}%)`;
+                    boxColor = "blue";
+                    recognizedName = null;
                 }
 
-                const drawBox = new faceapi.draw.DrawBox(box, { label });
+                // 🎯 DRAW BOX (SELALU DIGAMBAR)
+                const drawBox = new faceapi.draw.DrawBox(box, {
+                    label: label,
+                    boxColor: boxColor,
+                });
+
                 drawBox.draw(canvas);
-            });
-        }, 500);
+            }
+        }, 2000);
     });
 }
 
 // --- Kirim absensi
 async function sendAbsen(tipe) {
-    console.log("📤 Klik absen, recognizedName:", recognizedName);
-
-    if (!recognizedName) {
-        Swal.fire({
-            icon: "error",
-            title: "Wajah belum dikenali",
-            text: "Silakan hadapkan wajah ke kamera.",
-        });
-        return;
-    }
+    if (!recognizedName || hasAbsen) return;
 
     const video = document.getElementById("video");
-    const krs = video ? video.getAttribute("data-krs") : null;
+    const krs = video.getAttribute("data-krs");
 
     try {
         const response = await fetch("/internal/absensi", {
@@ -157,46 +200,35 @@ async function sendAbsen(tipe) {
         const result = await response.json();
 
         if (result.status === "success") {
+            hasAbsen = true;
+
             Swal.fire({
+                toast: true,
+                position: "top-end",
                 icon: "success",
-                title: "Berhasil!",
-                text: result.message || "Absen berhasil",
-                timer: 2000,
+                title: "Berhasil",
+                text: "Absen disimpan",
+                timer: 4000,
                 showConfirmButton: false,
             });
 
-            // reset setelah sukses
-            recognizedName = null;
-
-            window.location = "/internal/krs";
-        } else {
-            throw new Error("Gagal absensi");
+            setTimeout(() => {
+                window.location.href = "/internal/krs";
+            }, 4000);
         }
-    } catch (error) {
+    } catch (err) {
         Swal.fire({
+            toast: true,
+            position: "top-end",
             icon: "error",
             title: "Absensi gagal",
-            text: "Terjadi kesalahan saat mengirim data.",
+            timer: 3000,
+            showConfirmButton: false,
         });
     }
 }
 
-// --- Setup tombol
-function setupAbsenButtons() {
-    document
-        .getElementById("absenMasuk")
-        .addEventListener("click", async () => {
-            await sendAbsen("masuk");
-        });
-
-    document
-        .getElementById("absenPulang")
-        .addEventListener("click", async () => {
-            await sendAbsen("pulang");
-        });
-}
-
-// --- Load descriptor dari backend
+// --- Load descriptor
 async function loadLabeledDescriptors() {
     const res = await fetch("/internal/descriptors");
     const data = await res.json();
@@ -204,29 +236,21 @@ async function loadLabeledDescriptors() {
     const labeledDescriptors = [];
 
     data.forEach((user) => {
-        try {
-            if (!user.descriptor) return;
-            if (!Array.isArray(user.descriptor)) return;
-            if (user.descriptor.length !== 128) return;
+        if (!user.descriptor || user.descriptor.length !== 128) return;
 
-            labeledDescriptors.push(
-                new faceapi.LabeledFaceDescriptors(user.name, [
-                    new Float32Array(user.descriptor),
-                ]),
-            );
-        } catch (e) {
-            console.error("❌ Error parsing descriptor:", user.name, e);
-        }
+        labeledDescriptors.push(
+            new faceapi.LabeledFaceDescriptors(user.name, [
+                new Float32Array(user.descriptor),
+            ]),
+        );
     });
 
     return labeledDescriptors;
 }
 
-// --- Ambil CSRF
+// --- CSRF
 function getCsrfToken() {
-    return (
-        document
-            .querySelector('meta[name="csrf-token"]')
-            ?.getAttribute("content") || ""
-    );
+    return document
+        .querySelector('meta[name="csrf-token"]')
+        ?.getAttribute("content");
 }
