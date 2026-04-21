@@ -67,42 +67,88 @@ class FaceController extends Controller
     public function absensi(Request $request)
     {
 
-        if ($request->tipe == 'masuk') {
-            $result =    DB::table('riwayat_absensi')
-                ->insert([
-                    'krs_id' => $request->krs,
-                    'absensi_masuk' => Carbon::now(),
-                    'created_at' => Carbon::now()
-                ]);
+        $krs = $request->input('krs');
 
-            if ($result) {
-                return response()->json([
-                    'status' => 'success',
-                    'message' => 'Data berhasil simpan'
-                ], 200);
-            }
+        $detail_krs = DB::table('krs')
+            ->select('krs.*', 'mata_kuliah.waktu_mulai as waktu_mulai')
+            ->join('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')
+            ->where('krs.id', $krs)
+            ->first();
+
+
+        $currentLatUser = $request->currentLatUser;
+        $currentLngUser = $request->currentLngUser;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Lat Long Asli Pasca UBL
+
+        lat = -5.375329714761104
+        long = 105.24604359669844
+        |--------------------------------------------------------------------------
+        */
+        $latAbsen =  -5.375329714761104;
+        $langAbsen =  105.24604359669844;
+
+
+        $jarak = $this->distance($latAbsen, $langAbsen, $currentLatUser, $currentLngUser);
+
+        $radius = round($jarak['meters']);
+
+
+        if ($radius > 50) {
+            return response()->json([
+                'status' => 'error radius',
+                'message' => 'Anda diluar radius'
+            ], 400);
         }
 
-        if ($request->tipe === "pulang") {
+        $waktuMulai = Carbon::createFromFormat('H:i:s', $detail_krs->waktu_mulai);
+        $sekarang   = Carbon::now();
+
+        // batas toleransi (10 menit)
+        $batasMasuk = $waktuMulai->copy()->addMinutes(10);
+
+        if ($sekarang->timestamp <= $batasMasuk->timestamp) {
+            //  masih boleh absen (on time / toleransi)
+            $status = 'tepat waktu';
+        } else {
+            return response()->json([
+                'status' => 'error terlambat',
+                'message' => 'Absen simpan'
+            ], 400);
+        }
 
 
-            $riwayat_absensi_terbaru = DB::table('riwayat_absensi')->where('krs_id', $request->krs)->orderBy('created_at', 'DESC')->first();
+        $result =    DB::table('riwayat_absensi')
+            ->insert([
+                'krs_id' => $krs,
+                'absensi_masuk' => Carbon::now(),
+                'created_at' => Carbon::now(),
+                'status' => $status
+            ]);
 
-            DB::table('riwayat_absensi')
-                ->where('id', $riwayat_absensi_terbaru->id)
-                ->update([
-                    'absensi_keluar' => Carbon::now()
-                ]);
-
+        if ($result) {
             return response()->json([
                 'status' => 'success',
-                'message' => 'Data berhasil ditambah'
-            ]);
+                'message' => 'Absen simpan'
+            ], 200);
         }
     }
 
 
-        private function hitungJarak(){
-
+    function distance($lat1, $lon1, $lat2, $lon2)
+    {
+        $theta = $lon1 - $lon2;
+        $miles = (sin(deg2rad($lat1)) * sin(deg2rad($lat2))) + (cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta)));
+        $miles = acos($miles);
+        $miles = rad2deg($miles);
+        $miles = $miles * 60 * 1.1515;
+        $feet = $miles * 5280;
+        $yards = $feet / 3;
+        $kilometers = $miles * 1.609344;
+        $meters = $kilometers * 1000;
+        return compact('meters');
     }
 }

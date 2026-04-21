@@ -3,6 +3,8 @@ let isSubmitting = false;
 let unknownShown = false;
 let hasAbsen = false;
 let ownerName = null;
+let currentLat = null;
+let currentLng = null;
 
 var lokasi = document.getElementById("lokasi");
 
@@ -14,6 +16,9 @@ function successCallback(position) {
     const lat = position.coords.latitude;
     const lng = position.coords.longitude;
 
+    currentLat = lat;
+    currentLng = lng;
+
     lokasi.value = position.coords.latitude + "," + position.coords.longitude;
 
     var map = L.map("map").setView(
@@ -22,7 +27,7 @@ function successCallback(position) {
     );
 
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 17,
+        maxZoom: 19,
         attribution:
             '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
@@ -33,8 +38,8 @@ function successCallback(position) {
     ]).addTo(map);
 
     var circle = L.circle(
-        [position.coords.latitude, position.coords.longitude],
-        { color: "red", fillColor: "#f03", fillOpacity: 0.5, radius: 10 },
+        [-5.375329714761104, 105.24604359669844],
+        { color: "red", fillColor: "#f03", fillOpacity: 0.5, radius: 50 },
     ).addTo(map);
 }
 
@@ -85,6 +90,19 @@ async function startVideo() {
         faceapi.matchDimensions(canvas, displaySize);
 
         const labeledDescriptors = await loadLabeledDescriptors();
+
+        if (!labeledDescriptors.length) {
+            console.warn("Tidak ada descriptor wajah di database");
+
+            Swal.fire({
+                icon: "error",
+                title: "Data wajah kosong",
+                text: "Silakan daftar wajah terlebih dahulu",
+            });
+
+            return; // STOP proses deteksi
+        }
+
         const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.45);
 
         setInterval(async () => {
@@ -194,6 +212,8 @@ async function sendAbsen(tipe) {
                 krs: krs,
                 nama: recognizedName,
                 tipe: tipe,
+                currentLatUser: currentLat,
+                currentLngUser: currentLng,
             }),
         });
 
@@ -215,6 +235,18 @@ async function sendAbsen(tipe) {
             setTimeout(() => {
                 window.location.href = "/internal/krs";
             }, 4000);
+        }
+
+        if (result.status === "error radius") {
+            Swal.fire({
+                toast: true,
+                position: "top-end",
+                icon: "error",
+                title: "Maaf",
+                text: result.message,
+                timer: 2000,
+                showConfirmButton: true,
+            });
         }
     } catch (err) {
         Swal.fire({
