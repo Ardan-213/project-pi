@@ -91,22 +91,78 @@ class KrsController extends Controller
                 })
                 ->addColumn('aksi', function ($data) {
                     $button = '
-        <div class="d-flex justify-content-start">
+                <div class="d-flex justify-content-start">
 
-            <a href="#" class="badge bg-danger text-white ambil-mk hapus" data-id="' . $data->id . '">
-                <i class="fas fa-sm fa-trash-alt"></i> Hapus
-            </a>
+                    <a href="#" class="badge bg-danger text-white ambil-mk hapus" data-id="' . $data->id . '">
+                        <i class="fas fa-sm fa-trash-alt"></i> Hapus
+                    </a>
 
-                 <a href="' . route('halaman_deteksi_absensi', $data->id) . '" class="badge bg-info mx-1 text-white ambil-mk" data-id="' . $data->id . '">
-                <i class="fas fa-sm fa-camera"></i> Absensi
-            </a>
+                         <a href="' . route('halaman-absensi-masuk', $data->id) . '" class="badge bg-info mx-1 text-white ambil-mk" data-id="' . $data->id . '">
+                        <i class="fas fa-sm fa-camera"></i> Absen Masuk
+                    </a>
 
-               <a href="#" class="badge bg-warning text-white riwayat_absen" data-id="' . $data->id . '">
-                <i class="fas fa-sm fa-eye"></i> Lihat Riwayat Absensi
-            </a>
-        </div>';
+                          <a href="' . route('halaman-absensi-pulang', $data->id) . '" class="badge bg-info mx-1 text-white ambil-mk" data-id="' . $data->id . '">
+                        <i class="fas fa-sm fa-camera"></i> Absen Pulang
+                    </a>
+
+                       <a href="#" class="badge bg-warning text-white riwayat_absen" data-id="' . $data->id . '">
+                        <i class="fas fa-sm fa-eye"></i>  Riwayat Absensi
+                    </a>
+                </div>';
                     return $button;
                 })
+
+    //             ->addColumn('aksi', function ($data) {
+    //                 $now = Carbon::now();
+
+    //                 // Ambil hari sekarang (misal: Senin, Selasa, dll)
+    //                 $hariSekarang = $now->locale('id')->isoFormat('dddd');
+
+    //                 // Normalisasi (opsional, biar aman)
+    //                 $hariKrs = strtolower($data->mata_kuliah->hari);
+    //                 $hariSekarang = strtolower($hariSekarang);
+
+    //                 // Parse waktu mulai & selesai
+    //                 $waktuMulai = Carbon::createFromFormat('H:i:s', $data->mata_kuliah->waktu_mulai);
+    //                 $waktuSelesai = Carbon::createFromFormat('H:i:s', $data->mata_kuliah->waktu_selesai);
+
+    //                 // Set tanggal ke hari ini biar bisa dibandingkan
+    //                 $waktuMulai->setDate($now->year, $now->month, $now->day);
+    //                 $waktuSelesai->setDate($now->year, $now->month, $now->day);
+
+    //                 // Cek apakah hari sama dan waktu sekarang di antara mulai & selesai
+    //                 $isJadwalSekarang = ($hariSekarang === $hariKrs) && $now->between($waktuMulai, $waktuSelesai);
+
+    //                 $button = '<div class="d-flex justify-content-start">';
+
+    //                 // Tombol hapus (selalu ada)
+    //                 $button .= '
+    //                         <a href="#" class="badge bg-danger text-white ambil-mk hapus" data-id="' . $data->id . '">
+    //                             <i class="fas fa-sm fa-trash-alt"></i> Hapus
+    //                         </a>
+    //                     ';
+
+    //                 // Tombol absensi (hanya muncul jika sesuai jadwal)
+    //                 if ($isJadwalSekarang) {
+    //                     $button .= '
+    //                     <a href="' . route('halaman_deteksi_absensi', $data->id) . '"
+    //                     class="badge bg-info mx-1 text-white ambil-mk">
+    //                         <i class="fas fa-sm fa-camera"></i> Absensi
+    //                     </a>
+    //                 ';
+    //                 }
+
+    //                 // Tombol riwayat
+    //                 $button .= '
+    //     <a href="#" class="badge bg-warning text-white riwayat_absen" data-id="' . $data->id . '">
+    //         <i class="fas fa-sm fa-eye"></i> Lihat Riwayat Absensi
+    //     </a>
+    // ';
+
+    //                 $button .= '</div>';
+
+    //                 return $button;
+    //             })
                 ->addIndexColumn()
                 ->rawColumns(['aksi', 'nama_mata_kuliah', 'dosen_pengajar', 'sks', 'jurusan'])
                 ->toJson();
@@ -141,7 +197,6 @@ class KrsController extends Controller
         $tahunAkademik = $semesterInfo['tahun_akademik']; // '2024/2025', dll
 
         $mahasiswa = Mahasiswa::where('users_id', Auth::user()->id)->first();
-
 
         // Ambil data mata kuliah
         $mataKuliah = MataKuliah::find($request->mata_kuliah_id);
@@ -188,6 +243,4 @@ class KrsController extends Controller
             'message' => 'Data berhasil dihapus'
         ]);
     }
-
-
 }

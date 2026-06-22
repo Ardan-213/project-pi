@@ -10,11 +10,9 @@
         </div>
 
 
-        @can('akses tambah mata kuliah')
         <a href="{{ route('mata-kuliah.tambah') }}" class="btn btn-sm btn-primary">
             <i class="fas fa-sm fa-plus-circle"></i> Tambah
         </a>
-        @endcan
 
         <div class="card shadow mt-2">
             <div class="card-body">

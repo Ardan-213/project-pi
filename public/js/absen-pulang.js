@@ -23,7 +23,7 @@ function successCallback(position) {
 
     var map = L.map("map").setView(
         [position.coords.latitude, position.coords.longitude],
-        18,
+        13,
     );
 
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -37,9 +37,22 @@ function successCallback(position) {
         position.coords.longitude,
     ]).addTo(map);
 
+    // ini buletan radius pasca sarjana
+
+    // kedua
     var circle = L.circle(
-        [-5.375329714761104, 105.24604359669844],
-        { color: "red", fillColor: "#f03", fillOpacity: 0.5, radius: 50 },
+        [
+            // -5.375329714761104,
+            // 105.24604359669844
+            position.coords.latitude,
+            position.coords.longitude,
+        ],
+        {
+            color: "red",
+            fillColor: "#f03",
+            fillOpacity: 0.5,
+            radius: 100,
+        },
     ).addTo(map);
 }
 
@@ -92,8 +105,6 @@ async function startVideo() {
         const labeledDescriptors = await loadLabeledDescriptors();
 
         if (!labeledDescriptors.length) {
-            console.warn("Tidak ada descriptor wajah di database");
-
             Swal.fire({
                 icon: "error",
                 title: "Data wajah kosong",
@@ -169,7 +180,7 @@ async function startVideo() {
                         if (!isSubmitting && !hasAbsen) {
                             isSubmitting = true;
 
-                            await sendAbsen("masuk");
+                            await sendAbsen("pulang");
 
                             setTimeout(() => {
                                 isSubmitting = false;
@@ -202,7 +213,7 @@ async function sendAbsen(tipe) {
     const krs = video.getAttribute("data-krs");
 
     try {
-        const response = await fetch("/internal/absensi", {
+        const response = await fetch("/internal/absen_pulang", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -237,10 +248,18 @@ async function sendAbsen(tipe) {
             }, 4000);
         }
 
+        if (result.status === "error belum pulang") {
+            Swal.fire({
+                icon: "error",
+                title: "Maaf",
+                text: result.message,
+                timer: 3000,
+                showConfirmButton: true,
+            });
+        }
+
         if (result.status === "error radius") {
             Swal.fire({
-                toast: true,
-                position: "top-end",
                 icon: "error",
                 title: "Maaf",
                 text: result.message,

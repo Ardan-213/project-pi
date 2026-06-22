@@ -36,11 +36,15 @@
 
 
 
+             @if (Auth::user()->hasRole('super admin'))
+
+             @else
              <li class="menu-header">Akademik</li>
 
              <li><a class="nav-link" href="{{ route('krs') }}"><i class="fas fa-book-open"></i> <span>KRS</span></a></li>
 
 
+             @endif
 
 
              <li class="menu-header">Pengaturan</li>

@@ -141,10 +141,13 @@ Route::prefix('internal')
             ->name('daftar-wajah');
         Route::post('simpanDaftarWajah', [FaceController::class, 'simpanDaftarWajah'])
             ->name('simpanDaftarWajah');
-        Route::get('halaman-absensi/{id}', [FaceController::class, 'halaman_deteksi_absensi'])
-            ->name('halaman_deteksi_absensi');
+        Route::get('halaman-absensi-masuk/{id}', [FaceController::class, 'halaman_absen_masuk'])
+            ->name('halaman-absensi-masuk');
+        Route::get('halaman-absensi-pulang/{id}', [FaceController::class, 'halaman_absen_pulang'])
+            ->name('halaman-absensi-pulang');
         Route::get('descriptors', [FaceController::class, 'descriptors']);
-        Route::post('absensi', [FaceController::class, 'absensi']);
+        Route::post('absen_masuk', [FaceController::class, 'absen_masuk']);
+        Route::post('absen_pulang', [FaceController::class, 'absen_pulang']);
         Route::get('dataRiwayatAbsensi', [KrsController::class, 'dataRiwayatAbsensi'])
             ->name('dataRiwayatAbsensi');
     });
