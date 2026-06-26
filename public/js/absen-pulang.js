@@ -257,6 +257,17 @@ async function sendAbsen(tipe) {
                 showConfirmButton: true,
             });
         }
+        if (result.status === "error sudah absen pulang") {
+            Swal.fire({
+                toast: true,
+                position: "top-end",
+                icon: "error",
+                title: "Maaf",
+                text: result.message,
+                timer: 3000,
+                showConfirmButton: true,
+            });
+        }
 
         if (result.status === "error radius") {
             Swal.fire({

@@ -5,6 +5,8 @@ let hasAbsen = false;
 let ownerName = null;
 let currentLat = null;
 let currentLng = null;
+let blinkCount = 0;
+let isEyeClosed = false;
 
 var lokasi = document.getElementById("lokasi");
 
@@ -76,6 +78,25 @@ async function loadModels() {
     ]);
 }
 
+function getEAR(eyeLandmarks) {
+    // Jarak vertikal
+    const p2_p6 = Math.hypot(
+        eyeLandmarks[1].x - eyeLandmarks[5].x,
+        eyeLandmarks[1].y - eyeLandmarks[5].y,
+    );
+    const p3_p5 = Math.hypot(
+        eyeLandmarks[2].x - eyeLandmarks[4].x,
+        eyeLandmarks[2].y - eyeLandmarks[4].y,
+    );
+    // Jarak horizontal
+    const p1_p4 = Math.hypot(
+        eyeLandmarks[0].x - eyeLandmarks[3].x,
+        eyeLandmarks[0].y - eyeLandmarks[3].y,
+    );
+
+    return (p2_p6 + p3_p5) / (2.0 * p1_p4);
+}
+
 // --- Start kamera
 async function startVideo() {
     const video = document.getElementById("video");
@@ -110,12 +131,19 @@ async function startVideo() {
                 title: "Data wajah kosong",
                 text: "Silakan daftar wajah terlebih dahulu",
             });
-
-            return; // STOP proses deteksi
+            return;
         }
 
         const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.45);
 
+        function getEAR(eye) {
+            const p2_p6 = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y);
+            const p3_p5 = Math.hypot(eye[2].x - eye[4].x, eye[2].y - eye[4].y);
+            const p1_p4 = Math.hypot(eye[0].x - eye[3].x, eye[0].y - eye[3].y);
+            return (p2_p6 + p3_p5) / (2.0 * p1_p4);
+        }
+
+        // ⏱️ DIUBAH KE 200ms (0.2 detik) agar kedipan mata yang cepat bisa tertangkap kamera
         setInterval(async () => {
             const detections = await faceapi
                 .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
@@ -130,13 +158,13 @@ async function startVideo() {
             const ctx = canvas.getContext("2d");
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            //  TIDAK ADA WAJAH (WAJAH DITUTUP / KELUAR FRAME)
             if (resizedDetections.length === 0) {
                 recognizedName = null;
+                blinkCount = 0;
+                isEyeClosed = false;
 
                 if (!unknownShown && !hasAbsen) {
                     unknownShown = true;
-
                     Swal.fire({
                         icon: "info",
                         title: "Wajah tidak terdeteksi",
@@ -145,7 +173,6 @@ async function startVideo() {
                         showConfirmButton: false,
                     });
                 }
-
                 return;
             }
 
@@ -153,55 +180,80 @@ async function startVideo() {
                 const bestMatch = faceMatcher.findBestMatch(
                     detection.descriptor,
                 );
-
                 const box = detection.detection.box;
                 const similarity = ((1 - bestMatch.distance) * 100).toFixed(2);
 
                 let label = "";
                 let boxColor = "red";
 
-                // WAJAH DIKENALI
+                const landmarks = detection.landmarks;
+                const leftEye = landmarks.getLeftEye();
+                const rightEye = landmarks.getRightEye();
+
+                const leftEAR = getEAR(leftEye);
+                const rightEAR = getEAR(rightEye);
+                const avgEAR = (leftEAR + rightEAR) / 2;
+
+                // 🔍 DEBUG: Buka inspect console di browser untuk melihat angka EAR mata Anda asli
+                console.log("Nilai EAR Saat ini:", avgEAR.toFixed(3));
+
+                // 👁️ Threshold dinaikkan sedikit ke 0.25 agar lebih responsif mendeteksi mata sayu/merem
+                if (avgEAR < 0.25) {
+                    isEyeClosed = true;
+                } else {
+                    if (isEyeClosed) {
+                        blinkCount++;
+                        isEyeClosed = false;
+                        console.log(
+                            " Kedipan berhasil dicatat! Jumlah:",
+                            blinkCount,
+                        );
+                    }
+                }
+
                 if (bestMatch.distance < 0.45) {
                     recognizedName = bestMatch.label;
 
-                    //  VALIDASI OWNER
                     if (recognizedName !== ownerName) {
                         label = `${recognizedName} (${similarity}%)|Bukan ${ownerName}`;
                         boxColor = "red";
-
                         recognizedName = null;
+                        blinkCount = 0;
                     } else {
-                        //  OWNER VALID
-                        label = `${recognizedName} (${similarity}%)`;
-                        boxColor = "green";
                         unknownShown = false;
 
-                        // 🚀 AUTO ABSEN
-                        if (!isSubmitting && !hasAbsen) {
-                            isSubmitting = true;
+                        if (blinkCount >= 1) {
+                            label = `${recognizedName} (${similarity}%) - Kedip OK!`;
+                            boxColor = "green";
 
-                            await sendAbsen("masuk");
+                            if (!isSubmitting && !hasAbsen) {
+                                isSubmitting = true;
+                                await sendAbsen("masuk");
 
-                            setTimeout(() => {
-                                isSubmitting = false;
-                            }, 5000);
+                                setTimeout(() => {
+                                    isSubmitting = false;
+                                }, 5000);
+                            }
+                        } else {
+                            // Tampilkan juga info petunjuk di teks box layar
+                            label = `Owner Valid (${similarity}%) | Silakan BERKEDIP!`;
+                            boxColor = "orange";
                         }
                     }
                 } else {
                     label = `Tidak dikenal (${similarity}%)`;
                     boxColor = "blue";
                     recognizedName = null;
+                    blinkCount = 0;
                 }
 
-                // 🎯 DRAW BOX (SELALU DIGAMBAR)
                 const drawBox = new faceapi.draw.DrawBox(box, {
                     label: label,
                     boxColor: boxColor,
                 });
-
                 drawBox.draw(canvas);
             }
-        }, 2000);
+        }, 200); // ⏱️ Pengambilan gambar dipercepat demi akurasi liveness kedipan
     });
 }
 
@@ -233,6 +285,8 @@ async function sendAbsen(tipe) {
         if (result.status === "success") {
             hasAbsen = true;
 
+            blinkCount = 0;
+            isEyeClosed = false;
             Swal.fire({
                 toast: true,
                 position: "top-end",
@@ -250,7 +304,6 @@ async function sendAbsen(tipe) {
 
         if (result.status === "error terlambat") {
             Swal.fire({
-
                 icon: "error",
                 title: "Maaf",
                 text: result.message,
@@ -260,7 +313,7 @@ async function sendAbsen(tipe) {
         }
         if (result.status === "error belum mulai") {
             Swal.fire({
-                toast: true,
+                icon: "error",
                 title: "Maaf",
                 text: result.message,
                 timer: 3000,

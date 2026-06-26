@@ -23,7 +23,7 @@ class FaceController extends Controller
         ]);
     }
 
-      public function halaman_absen_pulang($id)
+    public function halaman_absen_pulang($id)
     {
         $krs = DB::table('krs')
             ->select('krs.*', 'mahasiswa.nama as nama_mahasiswa')
@@ -151,29 +151,39 @@ class FaceController extends Controller
 
     public function absen_pulang(Request $request)
     {
-
         $krs = $request->input('krs');
 
         $detail_krs = DB::table('krs')
-            ->select('krs.*', 'mata_kuliah.waktu_selesai as waktu_selesai')
+            ->select(
+                'krs.*',
+                'mata_kuliah.waktu_selesai as waktu_selesai'
+            )
             ->join('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')
             ->where('krs.id', $krs)
             ->first();
 
+        if (!$detail_krs) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Data KRS tidak ditemukan'
+            ], 404);
+        }
+
         $currentLatUser = $request->currentLatUser;
         $currentLngUser = $request->currentLngUser;
 
-        // $latAbsen =  -5.375329714761104;
-        // $langAbsen =  105.24604359669844;
-
+        // Koordinat lokasi absensi
         $latAbsen = $request->currentLatUser;
         $langAbsen =  $request->currentLngUser;
 
-
-        $jarak = $this->distance($latAbsen, $langAbsen, $currentLatUser, $currentLngUser);
+        $jarak = $this->distance(
+            $latAbsen,
+            $langAbsen,
+            $currentLatUser,
+            $currentLngUser
+        );
 
         $radius = round($jarak['meters']);
-
 
         if ($radius > 50) {
             return response()->json([
@@ -182,44 +192,51 @@ class FaceController extends Controller
             ], 403);
         }
 
-        $waktu_selesai = Carbon::createFromFormat('H:i:s', $detail_krs->waktu_selesai);
-        $sekarang   = Carbon::now();
+        $waktuSelesai = Carbon::today()
+            ->setTimeFromTimeString($detail_krs->waktu_selesai);
 
-        // Jika sekarang masih sebelum jam selesai
-        if ($sekarang->lt($waktu_selesai)) {
+        $sekarang = Carbon::now();
+
+        // Belum jam pulang
+        if ($sekarang->lt($waktuSelesai)) {
             return response()->json([
                 'status' => 'error belum pulang',
                 'message' => 'Belum waktu pulang'
             ], 422);
         }
 
-
+        // Cari absensi masuk yang belum memiliki absensi keluar
         $absensiTerakhir = DB::table('riwayat_absensi')
             ->where('krs_id', $krs)
-            ->whereNull('absensi_pulang')
+            ->whereNull('absensi_keluar')
             ->latest('id')
             ->first();
 
         if (!$absensiTerakhir) {
             return response()->json([
-                'status' => 'error',
-                'message' => 'Anda sudah melakukan absen pulang'
+                'status' => 'error sudah absen pulang',
+                'message' => ' Anda sudah absen pulang'
             ], 422);
         }
 
-        $result =    DB::table('riwayat_absensi')
+        $result = DB::table('riwayat_absensi')
             ->where('id', $absensiTerakhir->id)
             ->update([
-                'absensi_pulang' => Carbon::now(),
+                'absensi_keluar' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ]);
 
         if ($result) {
             return response()->json([
                 'status' => 'success',
-                'message' => 'Absen simpan'
+                'message' => 'Absen pulang berhasil'
             ], 200);
         }
+
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Gagal menyimpan absensi pulang'
+        ], 500);
     }
 
 
