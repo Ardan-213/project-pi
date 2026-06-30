@@ -12,16 +12,18 @@ class MataKuliah extends Model
     protected $table = 'mata_kuliah';
 
     protected $fillable = [
-        'kode',' nama_mata_kuliah', 'jurusan_id',
+        'kode', 'nama_mata_kuliah', 'jurusan_id',
         'dosen_id', 'sks', 'ruangan', 'hari',
-        'waktu_mulai', 'waktu_selesai', 'kuota_orang'
+        'waktu_mulai', 'waktu_selesai', 'kuota_orang',
     ];
 
-    public function jurusan(){
+    public function jurusan()
+    {
         return $this->belongsTo(Jurusan::class, 'jurusan_id', 'id');
     }
 
-    public function dosen(){
+    public function dosen()
+    {
         return $this->belongsTo(Dosen::class, 'dosen_id', 'id');
     }
 }

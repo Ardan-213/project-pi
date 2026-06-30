@@ -12,30 +12,25 @@ use Illuminate\Support\Facades\DB;
 
 class KrsController extends Controller
 {
-    function tentukanSemester($bulan, $tahun)
+    public function tentukanSemester($bulan, $tahun)
     {
-        // Semester ganjil: Agustus (8) sampai Januari (1)
-        // Semester genap: Februari (2) sampai Juli (7)
-
         if ($bulan >= 8 && $bulan <= 12) {
             return [
                 'nama' => 'Ganjil',
-                'tahun_akademik' => $tahun . '/' . ($tahun + 1)
+                'tahun_akademik' => $tahun.'/'.($tahun + 1),
             ];
         } elseif ($bulan >= 1 && $bulan <= 1) {
-            // Januari dianggap semester ganjil juga
             return [
                 'nama' => 'Ganjil',
-                'tahun_akademik' => ($tahun - 1) . '/' . $tahun
+                'tahun_akademik' => ($tahun - 1).'/'.$tahun,
             ];
         } else {
             return [
                 'nama' => 'Genap',
-                'tahun_akademik' => ($bulan <= 7 ? ($tahun - 1) : $tahun) . '/' . $tahun
+                'tahun_akademik' => ($bulan <= 7 ? ($tahun - 1) : $tahun).'/'.$tahun,
             ];
         }
     }
-
 
     public function index()
     {
@@ -44,7 +39,6 @@ class KrsController extends Controller
 
     public function data(Request $request)
     {
-
         if ($request->ajax()) {
             $sekarang = Carbon::now();
             $bulan = (int) $sekarang->format('m');
@@ -52,8 +46,8 @@ class KrsController extends Controller
 
             $semesterInfo = $this->tentukanSemester($bulan, $tahun);
 
-            $namaSemester = $semesterInfo['nama']; // 'Ganjil' atau 'Genap'
-            $tahunAkademik = $semesterInfo['tahun_akademik']; // '2024/2025', dll
+            $namaSemester = $semesterInfo['nama'];
+            $tahunAkademik = $semesterInfo['tahun_akademik'];
 
             $mahasiswa = Mahasiswa::where('users_id', Auth::user()->id)->first();
 
@@ -62,7 +56,6 @@ class KrsController extends Controller
                 ->where('semester', $namaSemester)
                 ->where('tahun', $tahunAkademik)
                 ->get();
-
 
             return datatables()->of($data)
                 ->addColumn('nama_mata_kuliah', function ($data) {
@@ -92,77 +85,22 @@ class KrsController extends Controller
                 ->addColumn('aksi', function ($data) {
                     $button = '
                 <div class="d-flex justify-content-start">
-
-                    <a href="#" class="badge bg-danger text-white ambil-mk hapus" data-id="' . $data->id . '">
+                    <a href="#" class="badge bg-danger text-white ambil-mk hapus" data-id="'.$data->id.'">
                         <i class="fas fa-sm fa-trash-alt"></i> Hapus
                     </a>
-
-                         <a href="' . route('halaman-absensi-masuk', $data->id) . '" class="badge bg-info mx-1 text-white ambil-mk" data-id="' . $data->id . '">
+                    <a href="'.route('halaman-absensi-masuk', $data->id).'" class="badge bg-info mx-1 text-white ambil-mk" data-id="'.$data->id.'">
                         <i class="fas fa-sm fa-camera"></i> Absen Masuk
                     </a>
-
-                          <a href="' . route('halaman-absensi-pulang', $data->id) . '" class="badge bg-info mx-1 text-white ambil-mk" data-id="' . $data->id . '">
+                    <a href="'.route('halaman-absensi-pulang', $data->id).'" class="badge bg-info mx-1 text-white ambil-mk" data-id="'.$data->id.'">
                         <i class="fas fa-sm fa-camera"></i> Absen Pulang
                     </a>
-
-                       <a href="#" class="badge bg-warning text-white riwayat_absen" data-id="' . $data->id . '">
-                        <i class="fas fa-sm fa-eye"></i>  Riwayat Absensi
+                    <a href="#" class="badge bg-warning text-white riwayat_absen" data-id="'.$data->id.'">
+                        <i class="fas fa-sm fa-eye"></i> Riwayat Absensi
                     </a>
                 </div>';
+
                     return $button;
                 })
-
-    //             ->addColumn('aksi', function ($data) {
-    //                 $now = Carbon::now();
-
-    //                 // Ambil hari sekarang (misal: Senin, Selasa, dll)
-    //                 $hariSekarang = $now->locale('id')->isoFormat('dddd');
-
-    //                 // Normalisasi (opsional, biar aman)
-    //                 $hariKrs = strtolower($data->mata_kuliah->hari);
-    //                 $hariSekarang = strtolower($hariSekarang);
-
-    //                 // Parse waktu mulai & selesai
-    //                 $waktuMulai = Carbon::createFromFormat('H:i:s', $data->mata_kuliah->waktu_mulai);
-    //                 $waktuSelesai = Carbon::createFromFormat('H:i:s', $data->mata_kuliah->waktu_selesai);
-
-    //                 // Set tanggal ke hari ini biar bisa dibandingkan
-    //                 $waktuMulai->setDate($now->year, $now->month, $now->day);
-    //                 $waktuSelesai->setDate($now->year, $now->month, $now->day);
-
-    //                 // Cek apakah hari sama dan waktu sekarang di antara mulai & selesai
-    //                 $isJadwalSekarang = ($hariSekarang === $hariKrs) && $now->between($waktuMulai, $waktuSelesai);
-
-    //                 $button = '<div class="d-flex justify-content-start">';
-
-    //                 // Tombol hapus (selalu ada)
-    //                 $button .= '
-    //                         <a href="#" class="badge bg-danger text-white ambil-mk hapus" data-id="' . $data->id . '">
-    //                             <i class="fas fa-sm fa-trash-alt"></i> Hapus
-    //                         </a>
-    //                     ';
-
-    //                 // Tombol absensi (hanya muncul jika sesuai jadwal)
-    //                 if ($isJadwalSekarang) {
-    //                     $button .= '
-    //                     <a href="' . route('halaman_deteksi_absensi', $data->id) . '"
-    //                     class="badge bg-info mx-1 text-white ambil-mk">
-    //                         <i class="fas fa-sm fa-camera"></i> Absensi
-    //                     </a>
-    //                 ';
-    //                 }
-
-    //                 // Tombol riwayat
-    //                 $button .= '
-    //     <a href="#" class="badge bg-warning text-white riwayat_absen" data-id="' . $data->id . '">
-    //         <i class="fas fa-sm fa-eye"></i> Lihat Riwayat Absensi
-    //     </a>
-    // ';
-
-    //                 $button .= '</div>';
-
-    //                 return $button;
-    //             })
                 ->addIndexColumn()
                 ->rawColumns(['aksi', 'nama_mata_kuliah', 'dosen_pengajar', 'sks', 'jurusan'])
                 ->toJson();
@@ -171,19 +109,15 @@ class KrsController extends Controller
 
     public function dataRiwayatAbsensi(Request $request)
     {
-        // dd($request->all());
         $data = DB::table('riwayat_absensi')
             ->select('riwayat_absensi.*')
             ->where('krs_id', $request->krs)
             ->get();
 
-        // dd($data);
-
         return datatables()->of($data)
             ->addIndexColumn()
             ->toJson();
     }
-
 
     public function inputKrs(Request $request)
     {
@@ -193,54 +127,48 @@ class KrsController extends Controller
 
         $semesterInfo = $this->tentukanSemester($bulan, $tahun);
 
-        $namaSemester = $semesterInfo['nama']; // 'Ganjil' atau 'Genap'
-        $tahunAkademik = $semesterInfo['tahun_akademik']; // '2024/2025', dll
+        $namaSemester = $semesterInfo['nama'];
+        $tahunAkademik = $semesterInfo['tahun_akademik'];
 
         $mahasiswa = Mahasiswa::where('users_id', Auth::user()->id)->first();
 
-        // Ambil data mata kuliah
         $mataKuliah = MataKuliah::find($request->mata_kuliah_id);
 
-        // Cek apakah kuota masih tersedia
         if ($mataKuliah->kuota_orang <= 0) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Kuota mata kuliah sudah habis'
+                'message' => 'Kuota mata kuliah sudah habis',
             ], 400);
         }
 
         $mataKuliah->decrement('kuota_orang');
 
-        $krs = new Krs();
+        $krs = new Krs;
         $krs->mahasiswa_id = $mahasiswa->id;
         $krs->mata_kuliah_id = $request->mata_kuliah_id;
         $krs->semester = $namaSemester;
         $krs->tahun = $tahunAkademik;
         $krs->save();
 
-
         return response()->json([
             'status' => 'success',
-            'message' => 'Data berhasil disimpan'
+            'message' => 'Data berhasil disimpan',
         ], 200);
     }
-
 
     public function hapus(Request $request)
     {
         $krs = Krs::find($request->id);
 
-        $mataKuliah = $krs->mata_kuliah;
-
-        if ($mataKuliah) {
-            $mataKuliah->increment('kuota_orang');
+        if ($krs->mata_kuliah) {
+            $krs->mata_kuliah->increment('kuota_orang');
         }
 
         $krs->delete();
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Data berhasil dihapus'
+            'message' => 'Data berhasil dihapus',
         ]);
     }
 }

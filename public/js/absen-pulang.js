@@ -1,3 +1,4 @@
+// === STATE ===
 let recognizedName = null;
 let isSubmitting = false;
 let unknownShown = false;
@@ -5,9 +6,20 @@ let hasAbsen = false;
 let ownerName = null;
 let currentLat = null;
 let currentLng = null;
+let blinkCount = 0;
+let isEyeClosed = false;
+let blinkStartTime = null;
+let lastLandmarks = null;
+let stillFrameCount = 0;
 
-var lokasi = document.getElementById("lokasi");
+const BLINK_THRESHOLD = 0.25;
+const REQUIRED_BLINKS = 3;
+const BLINK_TIMEOUT = 10000;
+const STILL_FRAME_LIMIT = 15;
 
+const lokasi = document.getElementById("lokasi");
+
+// === GEOLOCATION ===
 if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(successCallback, errorCallback);
 }
@@ -19,41 +31,22 @@ function successCallback(position) {
     currentLat = lat;
     currentLng = lng;
 
-    lokasi.value = position.coords.latitude + "," + position.coords.longitude;
+    lokasi.value = lat + "," + lng;
 
-    var map = L.map("map").setView(
-        [position.coords.latitude, position.coords.longitude],
-        13,
-    );
+    const map = L.map("map").setView([lat, lng], 15);
 
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
-        attribution:
-            '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
 
-    var marker = L.marker([
-        position.coords.latitude,
-        position.coords.longitude,
-    ]).addTo(map);
-
-    // ini buletan radius pasca sarjana
-
-    // kedua
-    var circle = L.circle(
-        [
-            // -5.375329714761104,
-            // 105.24604359669844
-            position.coords.latitude,
-            position.coords.longitude,
-        ],
-        {
-            color: "red",
-            fillColor: "#f03",
-            fillOpacity: 0.5,
-            radius: 100,
-        },
-    ).addTo(map);
+    L.marker([lat, lng]).addTo(map);
+    L.circle([-5.375329714761104, 105.24604359669844], {
+        color: "red",
+        fillColor: "#f03",
+        fillOpacity: 0.5,
+        radius: 50,
+    }).addTo(map);
 }
 
 function errorCallback(err) {
@@ -61,13 +54,13 @@ function errorCallback(err) {
     lokasi.value = "Gagal ambil lokasi";
 }
 
-// --- Load saat halaman siap
+// === LOAD ===
 window.addEventListener("DOMContentLoaded", async () => {
     await loadModels();
     await startVideo();
+    createBlinkUI();
 });
 
-// --- Load model
 async function loadModels() {
     await Promise.all([
         faceapi.nets.tinyFaceDetector.loadFromUri("/models"),
@@ -76,15 +69,84 @@ async function loadModels() {
     ]);
 }
 
-// --- Start kamera
+// === EAR (Eye Aspect Ratio) ===
+function getEAR(eye) {
+    const p2_p6 = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y);
+    const p3_p5 = Math.hypot(eye[2].x - eye[4].x, eye[2].y - eye[4].y);
+    const p1_p4 = Math.hypot(eye[0].x - eye[3].x, eye[0].y - eye[3].y);
+    return (p2_p6 + p3_p5) / (2.0 * p1_p4);
+}
+
+// === MICRO-MOVEMENT ANTI-SPOOFING ===
+function detectStillFrame(landmarks) {
+    if (!lastLandmarks) {
+        lastLandmarks = landmarks;
+        return false;
+    }
+    let totalMovement = 0;
+    const count = Math.min(landmarks.length, lastLandmarks.length);
+    for (let i = 0; i < count; i++) {
+        totalMovement += Math.hypot(
+            landmarks[i].x - lastLandmarks[i].x,
+            landmarks[i].y - lastLandmarks[i].y
+        );
+    }
+    const avgMovement = totalMovement / count;
+    lastLandmarks = landmarks;
+
+    if (avgMovement < 0.3) {
+        stillFrameCount++;
+    } else {
+        stillFrameCount = 0;
+    }
+    return stillFrameCount >= STILL_FRAME_LIMIT;
+}
+
+// === BLINK PROGRESS UI ===
+function createBlinkUI() {
+    const container = document.getElementById("video-container");
+    const div = document.createElement("div");
+    div.id = "blink-progress";
+    div.style.cssText = `
+        text-align:center; margin-top:8px; font-size:18px; font-family:sans-serif;
+        min-height:28px; transition: opacity 0.3s ease;
+    `;
+    div.innerHTML = `
+        <span id="blink-dots">
+            <span class="bdot" data-i="0" style="color:#ccc;font-size:24px;transition:color 0.3s">●</span>
+            <span class="bdot" data-i="1" style="color:#ccc;font-size:24px;transition:color 0.3s">●</span>
+            <span class="bdot" data-i="2" style="color:#ccc;font-size:24px;transition:color 0.3s">●</span>
+        </span>
+        <span id="blink-label" style="color:#888;margin-left:8px;font-size:14px">Menunggu wajah...</span>
+    `;
+    container.appendChild(div);
+}
+
+function updateBlinkUI(count, label, color) {
+    const dots = document.querySelectorAll(".bdot");
+    dots.forEach((dot, i) => {
+        dot.style.color = i < count ? "#22c55e" : "#ccc";
+    });
+    const lbl = document.getElementById("blink-label");
+    if (lbl) {
+        lbl.textContent = label;
+        lbl.style.color = color;
+    }
+}
+
+function resetBlinkUI() {
+    blinkCount = 0;
+    blinkStartTime = null;
+    updateBlinkUI(0, "Menunggu wajah...", "#888");
+}
+
+// === KAMERA ===
 async function startVideo() {
     const video = document.getElementById("video");
     ownerName = video.getAttribute("data-nama");
 
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-        });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         video.srcObject = stream;
     } catch (err) {
         alert("Gagal akses kamera");
@@ -95,11 +157,7 @@ async function startVideo() {
         const canvas = faceapi.createCanvasFromMedia(video);
         document.getElementById("video-container").appendChild(canvas);
 
-        const displaySize = {
-            width: video.videoWidth,
-            height: video.videoHeight,
-        };
-
+        const displaySize = { width: video.videoWidth, height: video.videoHeight };
         faceapi.matchDimensions(canvas, displaySize);
 
         const labeledDescriptors = await loadLabeledDescriptors();
@@ -110,8 +168,7 @@ async function startVideo() {
                 title: "Data wajah kosong",
                 text: "Silakan daftar wajah terlebih dahulu",
             });
-
-            return; // STOP proses deteksi
+            return;
         }
 
         const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.45);
@@ -122,21 +179,17 @@ async function startVideo() {
                 .withFaceLandmarks()
                 .withFaceDescriptors();
 
-            const resizedDetections = faceapi.resizeResults(
-                detections,
-                displaySize,
-            );
-
+            const resizedDetections = faceapi.resizeResults(detections, displaySize);
             const ctx = canvas.getContext("2d");
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            //  TIDAK ADA WAJAH (WAJAH DITUTUP / KELUAR FRAME)
+            // === NO FACE ===
             if (resizedDetections.length === 0) {
                 recognizedName = null;
+                if (!hasAbsen) resetBlinkUI();
 
                 if (!unknownShown && !hasAbsen) {
                     unknownShown = true;
-
                     Swal.fire({
                         icon: "info",
                         title: "Wajah tidak terdeteksi",
@@ -145,67 +198,94 @@ async function startVideo() {
                         showConfirmButton: false,
                     });
                 }
-
                 return;
             }
 
             for (const detection of resizedDetections) {
-                const bestMatch = faceMatcher.findBestMatch(
-                    detection.descriptor,
-                );
-
+                const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
                 const box = detection.detection.box;
                 const similarity = ((1 - bestMatch.distance) * 100).toFixed(2);
 
                 let label = "";
                 let boxColor = "red";
 
-                // WAJAH DIKENALI
-                if (bestMatch.distance < 0.45) {
-                    recognizedName = bestMatch.label;
+                const landmarks = detection.landmarks;
+                const leftEye = landmarks.getLeftEye();
+                const rightEye = landmarks.getRightEye();
+                const avgEAR = (getEAR(leftEye) + getEAR(rightEye)) / 2;
 
-                    //  VALIDASI OWNER
-                    if (recognizedName !== ownerName) {
-                        label = `${recognizedName} (${similarity}%)|Bukan ${ownerName}`;
-                        boxColor = "red";
+                const allPoints = landmarks.positions;
+                const isStill = detectStillFrame(allPoints);
 
-                        recognizedName = null;
-                    } else {
-                        //  OWNER VALID
-                        label = `${recognizedName} (${similarity}%)`;
-                        boxColor = "green";
-                        unknownShown = false;
-
-                        // 🚀 AUTO ABSEN
-                        if (!isSubmitting && !hasAbsen) {
-                            isSubmitting = true;
-
-                            await sendAbsen("pulang");
-
-                            setTimeout(() => {
-                                isSubmitting = false;
-                            }, 5000);
-                        }
-                    }
-                } else {
+                if (bestMatch.distance >= 0.45) {
                     label = `Tidak dikenal (${similarity}%)`;
                     boxColor = "blue";
                     recognizedName = null;
+                    if (!hasAbsen) resetBlinkUI();
+                } else if (bestMatch.label !== ownerName) {
+                    label = `${bestMatch.label} (${similarity}%) | Bukan ${ownerName}`;
+                    boxColor = "red";
+                    recognizedName = null;
+                    if (!hasAbsen) resetBlinkUI();
+                } else {
+                    recognizedName = ownerName;
+                    unknownShown = false;
+
+                    if (isStill) {
+                        label = `${ownerName} (${similarity}%) | Foto? Gerakkan kepala`;
+                        boxColor = "purple";
+                        if (!hasAbsen) resetBlinkUI();
+
+                    } else if (!hasAbsen) {
+                        if (!blinkStartTime) blinkStartTime = Date.now();
+
+                        if (Date.now() - blinkStartTime > BLINK_TIMEOUT) {
+                            resetBlinkUI();
+                            blinkStartTime = Date.now();
+                        }
+
+                        if (avgEAR < BLINK_THRESHOLD) {
+                            isEyeClosed = true;
+                        } else if (isEyeClosed) {
+                            blinkCount++;
+                            isEyeClosed = false;
+                            blinkStartTime = Date.now();
+                        }
+
+                        const progress = Math.min(blinkCount, REQUIRED_BLINKS);
+                        updateBlinkUI(progress, `Kedip ${progress}/${REQUIRED_BLINKS}`, "#22c55e");
+
+                        if (blinkCount >= REQUIRED_BLINKS) {
+                            label = `${ownerName} (${similarity}%) | ✅ Wajah terverifikasi!`;
+                            boxColor = "green";
+
+                            if (!isSubmitting) {
+                                isSubmitting = true;
+                                updateBlinkUI(REQUIRED_BLINKS, "✅ Verifikasi berhasil! Mengirim...", "#22c55e");
+
+                                setTimeout(async () => {
+                                    await sendAbsen("pulang");
+                                    isSubmitting = false;
+                                }, 2000);
+                            }
+                        } else {
+                            label = `${ownerName} (${similarity}%) | Kedip ${blinkCount}/${REQUIRED_BLINKS}`;
+                            boxColor = blinkCount > 0 ? "#f59e0b" : "#f97316";
+                        }
+                    } else {
+                        label = `${ownerName} (${similarity}%) | ✅ Sudah absen`;
+                        boxColor = "green";
+                    }
                 }
 
-                // 🎯 DRAW BOX (SELALU DIGAMBAR)
-                const drawBox = new faceapi.draw.DrawBox(box, {
-                    label: label,
-                    boxColor: boxColor,
-                });
-
+                const drawBox = new faceapi.draw.DrawBox(box, { label, boxColor });
                 drawBox.draw(canvas);
             }
-        }, 2000);
+        }, 200);
     });
 }
 
-// --- Kirim absensi
+// === KIRIM ABSENSI ===
 async function sendAbsen(tipe) {
     if (!recognizedName || hasAbsen) return;
 
@@ -220,9 +300,9 @@ async function sendAbsen(tipe) {
                 "X-CSRF-TOKEN": getCsrfToken(),
             },
             body: JSON.stringify({
-                krs: krs,
+                krs,
                 nama: recognizedName,
-                tipe: tipe,
+                tipe,
                 currentLatUser: currentLat,
                 currentLngUser: currentLng,
             }),
@@ -232,20 +312,29 @@ async function sendAbsen(tipe) {
 
         if (result.status === "success") {
             hasAbsen = true;
+            updateBlinkUI(REQUIRED_BLINKS, "✅ Absen pulang berhasil! ✅", "#22c55e");
 
             Swal.fire({
                 toast: true,
                 position: "top-end",
                 icon: "success",
                 title: "Berhasil",
-                text: "Absen disimpan",
-                timer: 4000,
+                text: "Absen pulang disimpan",
+                timer: 6000,
                 showConfirmButton: false,
             });
 
-            setTimeout(() => {
-                window.location.href = "/internal/krs";
-            }, 4000);
+            let countdown = 5;
+            updateBlinkUI(REQUIRED_BLINKS, `Redirect dalam ${countdown}...`, "#22c55e");
+            const interval = setInterval(() => {
+                countdown--;
+                if (countdown > 0) {
+                    updateBlinkUI(REQUIRED_BLINKS, `Redirect dalam ${countdown}...`, "#22c55e");
+                } else {
+                    clearInterval(interval);
+                    window.location.href = "/internal/krs";
+                }
+            }, 1000);
         }
 
         if (result.status === "error belum pulang") {
@@ -256,6 +345,7 @@ async function sendAbsen(tipe) {
                 timer: 3000,
                 showConfirmButton: true,
             });
+            isSubmitting = false;
         }
         if (result.status === "error sudah absen pulang") {
             Swal.fire({
@@ -267,8 +357,8 @@ async function sendAbsen(tipe) {
                 timer: 3000,
                 showConfirmButton: true,
             });
+            isSubmitting = false;
         }
-
         if (result.status === "error radius") {
             Swal.fire({
                 icon: "error",
@@ -277,6 +367,7 @@ async function sendAbsen(tipe) {
                 timer: 2000,
                 showConfirmButton: true,
             });
+            isSubmitting = false;
         }
     } catch (err) {
         Swal.fire({
@@ -287,10 +378,11 @@ async function sendAbsen(tipe) {
             timer: 3000,
             showConfirmButton: false,
         });
+        isSubmitting = false;
     }
 }
 
-// --- Load descriptor
+// === LOAD DESCRIPTOR ===
 async function loadLabeledDescriptors() {
     const res = await fetch("/internal/descriptors");
     const data = await res.json();
@@ -299,7 +391,6 @@ async function loadLabeledDescriptors() {
 
     data.forEach((user) => {
         if (!user.descriptor || user.descriptor.length !== 128) return;
-
         labeledDescriptors.push(
             new faceapi.LabeledFaceDescriptors(user.name, [
                 new Float32Array(user.descriptor),
@@ -310,7 +401,7 @@ async function loadLabeledDescriptors() {
     return labeledDescriptors;
 }
 
-// --- CSRF
+// === CSRF ===
 function getCsrfToken() {
     return document
         .querySelector('meta[name="csrf-token"]')

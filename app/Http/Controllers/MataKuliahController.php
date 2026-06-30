@@ -4,11 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Dosen;
 use App\Models\Jurusan;
-use App\Models\Mahasiswa;
 use App\Models\MataKuliah;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Validator;
 
 class MataKuliahController extends Controller
 {
@@ -17,12 +15,10 @@ class MataKuliahController extends Controller
         return view('pages.mata-kuliah.index');
     }
 
-
     public function data(Request $request)
     {
         if ($request->ajax()) {
             $data = MataKuliah::with(['jurusan', 'dosen'])->get();
-
 
             return datatables()->of($data)
                 ->addColumn('jurusan', function ($data) {
@@ -36,7 +32,7 @@ class MataKuliahController extends Controller
                         $button = '
         <div class="d-flex justify-content-start">
 
-            <a href="#" class="badge bg-primary text-white ambil-mk ambil_mata_kuliah" data-id="' . $data->id . '">
+            <a href="#" class="badge bg-primary text-white ambil-mk ambil_mata_kuliah" data-id="'.$data->id.'">
                 <i class="fas fa-sm fa-pencil-alt"></i> Ambil Mata Kuliah
             </a>
         </div>';
@@ -44,17 +40,15 @@ class MataKuliahController extends Controller
 
                         $button = '
         <div class="d-flex justify-content-start">
-            <a href="' . route('jurusan.edit', $data->id) . '" class="badge bg-warning text-white me-1">
+            <a href="'.route('jurusan.edit', $data->id).'" class="badge bg-warning text-white me-1">
                 <i class="fas fa-sm fa-edit"></i> Edit
             </a>
-            <a href="#" class="badge bg-danger text-white mx-1 hapus" data-id="' . $data->id . '">
+            <a href="#" class="badge bg-danger text-white mx-1 hapus" data-id="'.$data->id.'">
                 <i class="fas fa-sm fa-trash-alt"></i> Hapus
             </a>
 
         </div>';
                     }
-
-
 
                     return $button;
                 })
@@ -64,7 +58,6 @@ class MataKuliahController extends Controller
         }
     }
 
-
     public function tambah()
     {
         return view('pages.mata-kuliah.tambah');
@@ -72,28 +65,7 @@ class MataKuliahController extends Controller
 
     public function simpan(Request $request)
     {
-
-        // dd($request->all());
-        // $validator = Validator::make($request->all(), [
-        //     'kode' => 'required',
-        //     'nama_mata_kuliah' => 'required',
-        //     'jurusan' => 'required',
-        //     'dosen' => 'required',
-        //     'sks' => 'required',
-        //     'ruangan' => 'required',
-        //     'hari' => 'required',
-        //     'waktu_mulai' => 'required',
-        //     'waktu_selesai' => 'required'
-        // ]);
-
-        // if ($validator->fails()) {
-        //     return response()->json([
-        //         'status' => 'error',
-        //         'errors' => $validator->errors()
-        //     ], 422);
-        // }
-
-        $mata_kuliah = new MataKuliah();
+        $mata_kuliah = new MataKuliah;
         $mata_kuliah->kode = $request->kode;
         $mata_kuliah->nama_mata_kuliah = $request->nama_mata_kuliah;
         $mata_kuliah->jurusan_id = $request->jurusan;
@@ -108,86 +80,37 @@ class MataKuliahController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Data berhasil ditambah'
+            'message' => 'Data berhasil ditambah',
         ], 200);
     }
 
     public function listJurusan(Request $request)
     {
-        if ($request->has('q')) {
-            $search = $request->q;
+        $data = $request->has('q')
+            ? Jurusan::where('nama', 'LIKE', '%'.$request->q.'%')->get()
+            : Jurusan::all();
 
-            $data = Jurusan::where('nama', 'LIKE', '%' . $search . '%')->get();
-
-            $result = $data->map(function ($d) {
-                return [
-                    'id' => $d->id,
-                    'text' => $d->nama
-                ];
-            });
-
-            return response()->json($result);
-        } else {
-            $data = Jurusan::all();
-
-
-            $result = $data->map(function ($d) {
-                return [
-                    'id' => $d->id,
-                    'text' => $d->nama
-                ];
-            });
-
-            return response()->json($result);
-        }
+        return response()->json($data->map(fn ($d) => ['id' => $d->id, 'text' => $d->nama]));
     }
-
 
     public function listDosenByJurusan(Request $request)
     {
+        $query = Dosen::where('jurusan_id', $request->jurusan_id);
+
         if ($request->has('q')) {
-            $search = $request->q;
-
-            $data = Dosen::where('jurusan_id', $request->jurusan_id)
-                ->where('nama_lengkap', 'LIKE', '%' . $search . '%')
-                ->get();
-
-            $result = $data->map(function ($d) {
-                return [
-                    'id' => $d->id,
-                    'text' => $d->nama_lengkap
-                ];
-            });
-
-            return response()->json($result);
-        } else {
-            $data = Dosen::where('jurusan_id', $request->jurusan_id)->get();
-
-
-            $result = $data->map(function ($d) {
-                return [
-                    'id' => $d->id,
-                    'text' => $d->nama_lengkap
-                ];
-            });
-
-            return response()->json($result);
+            $query->where('nama_lengkap', 'LIKE', '%'.$request->q.'%');
         }
+
+        return response()->json($query->get()->map(fn ($d) => ['id' => $d->id, 'text' => $d->nama_lengkap]));
     }
-
-    public function edit($id) {}
-
-    public function update(Request $request) {}
 
     public function hapus(Request $request)
     {
-        $mata_kuliah = MataKuliah::find($request->id);
-
-        $mata_kuliah->delete();
+        MataKuliah::find($request->id)->delete();
 
         return response()->json([
-            'status' => 'succcess',
-            'messsage' => 'Data berhasil dihapus'
+            'status' => 'success',
+            'message' => 'Data berhasil dihapus',
         ], 200);
     }
 }

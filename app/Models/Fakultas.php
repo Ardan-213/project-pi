@@ -12,10 +12,11 @@ class Fakultas extends Model
     protected $table = 'fakultas';
 
     protected $fillable = [
-        'nama_fakultas'
+        'nama_fakultas',
     ];
 
-    public function jurusan(){
+    public function jurusan()
+    {
         return $this->hasMany(Jurusan::class, 'fakultas_id', 'id');
     }
 }

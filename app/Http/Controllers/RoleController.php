@@ -11,11 +11,11 @@ class RoleController extends Controller
     public function index()
     {
         $roles = Role::latest()->when(request()->q, function ($roles) {
-            $roles = $roles->where('name', 'like', '%' . request()->q . '%');
+            $roles = $roles->where('name', 'like', '%'.request()->q.'%');
         })->paginate(5);
 
         return view('pages.role.index', [
-            'roles' => $roles
+            'roles' => $roles,
         ]);
     }
 
@@ -24,37 +24,31 @@ class RoleController extends Controller
         $permissions = Permission::latest()->get();
 
         return view('pages.role.tambah', [
-            'permissions' => $permissions
+            'permissions' => $permissions,
         ]);
     }
 
     public function simpan(Request $request)
     {
-
-        // dd($request->all());
         $this->validate($request, [
-            'name' => 'required|unique:roles'
+            'name' => 'required|unique:roles',
         ]);
 
         $role = Role::create([
-            'name' => strtolower($request->input('name'))
+            'name' => strtolower($request->input('name')),
         ]);
 
-        //assign permission to role
         $role->syncPermissions($request->input('permissions'));
 
-        if ($role) {
-            //redirect dengan pesan sukses
-            return redirect()->route('role')->with('status', 'Data berhasil ditambah');
-        }
+        return redirect()->route('role')->with('status', 'Data berhasil ditambah');
     }
 
-
-    public function hapus($id) {
+    public function hapus($id)
+    {
         $role = Role::find($id);
 
         $role->delete();
 
-         return redirect()->route('role')->with('status', 'Data berhasil dihapus');
+        return redirect()->route('role')->with('status', 'Data berhasil dihapus');
     }
 }

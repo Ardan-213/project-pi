@@ -12,7 +12,6 @@ use Spatie\Permission\Models\Role;
 
 class MahasiswaController extends Controller
 {
-
     public function index()
     {
         return view('pages.mahasiswa.index');
@@ -29,7 +28,7 @@ class MahasiswaController extends Controller
                 })
                 ->addColumn('aksi', function ($data) {
                     $button = ' <a href="#" class="badge bg-warning text-white"><i class="fas fa-sm fa-edit"></i> Edit</a>
-                      <a href="#" class="badge bg-danger hapus text-white" data-id="' . $data->id . '"> <i class="fas fa-sm fa-trash-alt"></i> Hapus</a>';
+                      <a href="#" class="badge bg-danger hapus text-white" data-id="'.$data->id.'"> <i class="fas fa-sm fa-trash-alt"></i> Hapus</a>';
 
                     return $button;
                 })
@@ -39,7 +38,7 @@ class MahasiswaController extends Controller
         }
     }
 
-    public function tambah(Request $request)
+    public function tambah()
     {
         return view('pages.mahasiswa.tambah');
     }
@@ -52,20 +51,19 @@ class MahasiswaController extends Controller
         DB::beginTransaction();
 
         try {
-            $mahasiswa = new Mahasiswa();
+            $mahasiswa = new Mahasiswa;
             $mahasiswa->nama = $request->nama;
             $mahasiswa->npm = $request->npm;
             $mahasiswa->jurusan_id = $request->jurusan;
             $mahasiswa->save();
 
-            $password = "password";
+            $password = 'password';
 
             $role = Role::where('name', 'mahasiswa')
-                ->orwHere('name', 'Mahasiswa')
+                ->orWhere('name', 'Mahasiswa')
                 ->first();
 
-
-            $user = new User();
+            $user = new User;
             $user->name = $request->nama;
             $user->username = $request->npm;
             $user->password = Hash::make($password);
@@ -74,51 +72,30 @@ class MahasiswaController extends Controller
             $user->assignRole($role);
 
             $mahasiswa->update([
-                'users_id' => $user->id
+                'users_id' => $user->id,
             ]);
 
             DB::commit();
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Data berhasil disimpan'
+                'message' => 'Data berhasil disimpan',
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
 
-
     public function listJurusan(Request $request)
     {
-        if ($request->has('q')) {
-            $search = $request->q;
+        $data = $request->has('q')
+            ? Jurusan::where('nama', 'LIKE', '%'.$request->q.'%')->get()
+            : Jurusan::all();
 
-            $data = Jurusan::where('nama', 'LIKE', '%' . $search . '%')->get();
-
-            $result = $data->map(function ($d) {
-                return [
-                    'id' => $d->id,
-                    'text' => $d->nama,
-                ];
-            });
-
-            return response()->json($result);
-        } else {
-            $data = Jurusan::all();
-
-            $result = $data->map(function ($d) {
-                return [
-                    'id' => $d->id,
-                    'text' => $d->nama,
-                ];
-            });
-
-            return response()->json($result);
-        }
+        return response()->json($data->map(fn ($d) => ['id' => $d->id, 'text' => $d->nama]));
     }
 
     public function hapus(Request $request)
@@ -129,7 +106,7 @@ class MahasiswaController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Data berhasil dihapus'
+            'message' => 'Data berhasil dihapus',
         ]);
     }
 }

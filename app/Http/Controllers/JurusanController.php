@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Fakultas;
 use App\Models\Jurusan;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 
 class JurusanController extends Controller
 {
@@ -24,8 +23,8 @@ class JurusanController extends Controller
                     return $data->fakultas->nama_fakultas;
                 })
                 ->addColumn('aksi', function ($data) {
-                    $button = ' <a href="' . route('jurusan.edit', $data->id) . '" class="badge bg-warning text-white"><i class="fas fa-sm fa-edit"></i> Edit</a>
-                      <a href="#" class="badge bg-danger hapus text-white" data-id="' . $data->id . '"> <i class="fas fa-sm fa-trash-alt"></i> Hapus</a>';
+                    $button = ' <a href="'.route('jurusan.edit', $data->id).'" class="badge bg-warning text-white"><i class="fas fa-sm fa-edit"></i> Edit</a>
+                      <a href="#" class="badge bg-danger hapus text-white" data-id="'.$data->id.'"> <i class="fas fa-sm fa-trash-alt"></i> Hapus</a>';
 
                     return $button;
                 })
@@ -42,48 +41,37 @@ class JurusanController extends Controller
 
     public function simpan(Request $request)
     {
-
-        // dd($request->all());
-
-
-        $jurusan = new Jurusan();
+        $jurusan = new Jurusan;
         $jurusan->fakultas_id = $request->fakultas;
         $jurusan->nama = $request->jurusan;
         $jurusan->save();
 
-        if ($jurusan) {
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Data berhasil di tambahkan'
-            ], 200);
-        }
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Data berhasil di tambahkan',
+        ], 200);
     }
-
 
     public function edit($id)
     {
         $jurusan = Jurusan::find($id);
 
         return view('pages.jurusan.edit', [
-            'jurusan' => $jurusan
+            'jurusan' => $jurusan,
         ]);
     }
 
-
     public function update(Request $request)
     {
-
         $jurusan = Jurusan::find($request->id);
         $jurusan->nama = $request->jurusan;
         $jurusan->fakultas_id = $request->fakultas;
         $jurusan->save();
 
-        if ($jurusan) {
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Data berhasil di ubah'
-            ], 200);
-        }
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Data berhasil di ubah',
+        ], 200);
     }
 
     public function hapus(Request $request)
@@ -95,42 +83,19 @@ class JurusanController extends Controller
 
             return response()->json([
                 'status' => true,
-                'message' => 'Data berhasil di hapus'
+                'message' => 'Data berhasil di hapus',
             ]);
         }
     }
 
-
     public function listFakultas(Request $request)
     {
-        if ($request->has('q')) {
-            $search = $request->q;
+        $data = $request->has('q')
+            ? Fakultas::where('nama_fakultas', 'LIKE', '%'.$request->q.'%')->get()
+            : Fakultas::all();
 
-            $data = Fakultas::where('nama_fakultas', 'LIKE', '%' . $search . '%')->get();
-
-            $result = $data->map(function ($d) {
-                return [
-                    'id' => $d->id,
-                    'text' => $d->nama_fakultas
-                ];
-            });
-
-            return response()->json($result);
-        } else {
-
-            $data = Fakultas::all();
-
-            $result = $data->map(function ($d) {
-                return [
-                    'id' => $d->id,
-                    'text' => $d->nama_fakultas
-                ];
-            });
-
-            return response()->json($result);
-        }
+        return response()->json($data->map(fn ($d) => ['id' => $d->id, 'text' => $d->nama_fakultas]));
     }
-
 
     public function listFakultasByJurusan(Request $request)
     {

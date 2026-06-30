@@ -15,7 +15,7 @@ class Krs extends Model
         'mahasiswa_id',
         'mata_kuliah_id',
         'semester',
-        'tahun'
+        'tahun',
     ];
 
     public function mahasiswa()

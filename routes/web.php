@@ -33,7 +33,7 @@ Route::get('/', function () {
 Auth::routes();
 
 Route::prefix('internal')
-    // ->middleware('auth')
+    ->middleware('auth')
     ->group(function () {
 
         Route::get('/dashboard', [DashboardController::class, 'index'])
@@ -78,18 +78,15 @@ Route::prefix('internal')
         Route::get('jurusan/edit/{id}', [JurusanController::class, 'edit'])->name('jurusan.edit');
         Route::post('jurusan/update', [JurusanController::class, 'update'])->name('jurusan.update');
 
-
         // dosen
         Route::get('dosen', [DosenController::class, 'index'])->name('dosen');
         Route::get('dosen/tambah', [DosenController::class, 'tambah'])->name('dosen.tambah');
         Route::post('dosen/simpan', [DosenController::class, 'simpan'])->name('dosen.simpan');
         Route::get('dosen/listJurusan', [DosenController::class, 'listJurusan'])->name('dosen.listJurusan');
         Route::get('dosen/data', [DosenController::class, 'data'])->name('dosen.data');
-        Route::post('dosen/simpan', [DosenController::class, 'simpan'])->name('dosen.simpan');
         Route::get('dosen/edit/{id}', [DosenController::class, 'edit'])->name('dosen.edit');
         Route::post('dosen/update', [DosenController::class, 'update'])->name('dosen.update');
         Route::post('dosen/hapus', [DosenController::class, 'hapus'])->name('dosen.hapus');
-
 
         // mata kuliah
         Route::get('mata-kuliah', [MataKuliahController::class, 'index'])
@@ -104,13 +101,8 @@ Route::prefix('internal')
             ->name('mata-kuliah.listDosenByJurusan');
         Route::post('mata-kuliah/simpan', [MataKuliahController::class, 'simpan'])
             ->name('mata-kuliah.simpan');
-        Route::get('mata-kuliah/edit/{id}', [MataKuliahController::class, 'edit'])
-            ->name('mata-kuliah.edit');
-        Route::post('mata-kuliah/update', [MataKuliahController::class, 'update'])
-            ->name('mata-kuliah.update');
         Route::post('mata-kuliah/hapus', [MataKuliahController::class, 'hapus'])
             ->name('mata-kuliah.hapus');
-
 
         // mahasiswa
         Route::get('mahasiswa', [MahasiswaController::class, 'index'])
@@ -124,7 +116,6 @@ Route::prefix('internal')
         Route::get('mahasiswa/listJurusan', [MahasiswaController::class, 'listJurusan'])
             ->name('mahasiswa.listJurusan');
 
-
         // krs
         Route::get('krs', [KrsController::class, 'index'])
             ->name('krs');
@@ -134,7 +125,6 @@ Route::prefix('internal')
             ->name('krs.data');
         Route::post('krs/hapus', [KrsController::class, 'hapus'])
             ->name('krs.hapus');
-
 
         // bagian face recogination
         Route::get('daftar-wajah', [FaceController::class, 'daftar_wajah'])
@@ -151,5 +141,3 @@ Route::prefix('internal')
         Route::get('dataRiwayatAbsensi', [KrsController::class, 'dataRiwayatAbsensi'])
             ->name('dataRiwayatAbsensi');
     });
-
-Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');

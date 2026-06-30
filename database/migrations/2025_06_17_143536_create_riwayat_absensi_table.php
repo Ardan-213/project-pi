@@ -18,7 +18,6 @@ return new class extends Migration
             $table->dateTime('absensi_keluar');
             $table->timestamps();
 
-
             $table->foreign('krs_id')
                 ->references('id')
                 ->on('krs')

@@ -25,16 +25,16 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('jurusan_id')
-            ->references('id')
-            ->on('jurusan')
-            ->onUpdate('cascade')
-            ->onDelete('cascade');
+                ->references('id')
+                ->on('jurusan')
+                ->onUpdate('cascade')
+                ->onDelete('cascade');
 
-             $table->foreign('dosen_id')
-            ->references('id')
-            ->on('dosen')
-            ->onUpdate('cascade')
-            ->onDelete('cascade');
+            $table->foreign('dosen_id')
+                ->references('id')
+                ->on('dosen')
+                ->onUpdate('cascade')
+                ->onDelete('cascade');
         });
     }
 

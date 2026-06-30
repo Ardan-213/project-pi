@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 
@@ -27,7 +26,6 @@ class PermissionsTableSeeder extends Seeder
         // Permission::create(['name' => 'akses tambah user']);
         // Permission::create(['name' => 'akses edit user']);
         // Permission::create(['name' => 'akses hapus user']);
-
 
         // // // fakultas
         // Permission::create(['name' => 'akses halaman fakultas']);
@@ -59,7 +57,6 @@ class PermissionsTableSeeder extends Seeder
         // Permission::create(['name' => 'akses tambah mahasiswa']);
         // Permission::create(['name' => 'akses edit mahasiswa']);
         // Permission::create(['name' => 'akses hapus mahasiswa']);
-
 
         // akses mahasiswa tambahan
         Permission::create(['name' => 'akses halaman pengaturan wajah']);

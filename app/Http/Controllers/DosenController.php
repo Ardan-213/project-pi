@@ -4,12 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Dosen;
 use App\Models\Jurusan;
-use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Spatie\Permission\Models\Role;
 
 class DosenController extends Controller
 {
@@ -28,8 +24,8 @@ class DosenController extends Controller
                     return $data->jurusan->nama;
                 })
                 ->addColumn('aksi', function ($data) {
-                    $button = ' <a href="' . route('dosen.edit', $data->id) . '" class="badge bg-warning text-white"><i class="fas fa-sm fa-edit"></i> Edit</a>
-                      <a href="#" class="badge bg-danger hapus text-white" data-id="' . $data->id . '"> <i class="fas fa-sm fa-trash-alt"></i> Hapus</a>';
+                    $button = ' <a href="'.route('dosen.edit', $data->id).'" class="badge bg-warning text-white"><i class="fas fa-sm fa-edit"></i> Edit</a>
+                      <a href="#" class="badge bg-danger hapus text-white" data-id="'.$data->id.'"> <i class="fas fa-sm fa-trash-alt"></i> Hapus</a>';
 
                     return $button;
                 })
@@ -44,37 +40,14 @@ class DosenController extends Controller
         return view('pages.dosen.tambah');
     }
 
-
     public function listJurusan(Request $request)
     {
-        if ($request->has('q')) {
-            $search = $request->q;
+        $data = $request->has('q')
+            ? Jurusan::where('nama', 'LIKE', '%'.$request->q.'%')->get()
+            : Jurusan::all();
 
-            $jurusan = Jurusan::where('nama', 'LIKE', '%' . $search . '%')->get();
-
-            $result = $jurusan->map(function ($data) {
-                return [
-                    'id' => $data->id,
-                    'text' => $data->nama
-                ];
-            });
-
-            return response()->json($result);
-        } else {
-
-            $jurusan = Jurusan::all();
-
-            $result = $jurusan->map(function ($data) {
-                return [
-                    'id' => $data->id,
-                    'text' => $data->nama
-                ];
-            });
-
-            return response()->json($result);
-        }
+        return response()->json($data->map(fn ($d) => ['id' => $d->id, 'text' => $d->nama]));
     }
-
 
     public function simpan(Request $request)
     {
@@ -83,21 +56,20 @@ class DosenController extends Controller
 
         $validator = Validator::make($request->all(), [
             'nama_lengkap' => 'required',
-            'jurusan' => 'required'
+            'jurusan' => 'required',
         ], [
             'nama_lengkap.required' => 'nama lengkap wajib disi',
-            'jurusan.required' => 'jurusan wajib di isi'
+            'jurusan.required' => 'jurusan wajib di isi',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'status' => 'errors validation',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
-
-        $dosen = new Dosen();
+        $dosen = new Dosen;
         $dosen->nama_lengkap = $request->nama_lengkap;
         $dosen->nid = $request->nid;
         $dosen->jurusan_id = $request->jurusan;
@@ -105,7 +77,7 @@ class DosenController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Data berhasil disimpan'
+            'message' => 'Data berhasil disimpan',
         ], 200);
     }
 
@@ -115,10 +87,9 @@ class DosenController extends Controller
         $dosen = Dosen::find($id);
 
         return view('pages.dosen.edit', [
-            'dosen' => $dosen
+            'dosen' => $dosen,
         ]);
     }
-
 
     public function update(Request $request)
     {
@@ -130,7 +101,7 @@ class DosenController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Data berhasil disimpan'
+            'message' => 'Data berhasil disimpan',
         ], 200);
     }
 
@@ -142,7 +113,7 @@ class DosenController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Data berhasil dihapus'
+            'message' => 'Data berhasil dihapus',
         ], 200);
     }
 }

@@ -21,7 +21,7 @@ class FakultasController extends Controller
             return datatables()->of($data)
                 ->addColumn('aksi', function ($data) {
                     $button = ' <a href="#" class="badge bg-warning text-white"><i class="fas fa-sm fa-edit"></i> Edit</a>
-                      <a href="#" class="badge bg-danger hapus text-white" data-id="' . $data->id . '"> <i class="fas fa-sm fa-trash-alt"></i> Hapus</a>';
+                      <a href="#" class="badge bg-danger hapus text-white" data-id="'.$data->id.'"> <i class="fas fa-sm fa-trash-alt"></i> Hapus</a>';
 
                     return $button;
                 })
@@ -31,39 +31,35 @@ class FakultasController extends Controller
         }
     }
 
-
     public function tambah()
     {
         return view('pages.fakultas.tambah');
     }
 
-
     public function simpan(Request $request)
     {
 
         $validator = Validator::make($request->all(), [
-            'nama_fakultas' => 'required'
+            'nama_fakultas' => 'required',
         ], [
-            'nama_fakultas.required' => 'nama fakultas wajib di isi'
+            'nama_fakultas.required' => 'nama fakultas wajib di isi',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'status' => 'errors validation',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
-        $fakultas = new Fakultas();
+        $fakultas = new Fakultas;
         $fakultas->nama_fakultas = $request->nama_fakultas;
         $fakultas->save();
 
-        if ($fakultas) {
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Data berhasil ditambah',
-            ], 200);
-        }
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Data berhasil ditambah',
+        ], 200);
     }
 
     public function edit($id)
@@ -71,22 +67,22 @@ class FakultasController extends Controller
         $fakultas = Fakultas::find($id);
 
         return view('pages.fakultas.edit', [
-            'fakultas' => $fakultas
+            'fakultas' => $fakultas,
         ]);
     }
 
     public function update(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'nama_fakultas' => 'required'
+            'nama_fakultas' => 'required',
         ], [
-            'nama_fakultas.required' => 'nama fakultas wajib di isi'
+            'nama_fakultas.required' => 'nama fakultas wajib di isi',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'status' => 'error',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -94,23 +90,19 @@ class FakultasController extends Controller
         $fakultas->nama_fakultas = $request->nama_fakultas;
         $fakultas->save();
 
-        if ($fakultas) {
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Data berhasil ditambah',
-            ], 200);
-        }
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Data berhasil ditambah',
+        ], 200);
     }
 
     public function hapus(Request $request)
     {
-        $fakultas = Fakultas::find($request->id);
+        Fakultas::find($request->id)->delete();
 
-        if ($fakultas->delete()) {
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Data berhasil di hapus'
-            ]);
-        }
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Data berhasil di hapus',
+        ]);
     }
 }

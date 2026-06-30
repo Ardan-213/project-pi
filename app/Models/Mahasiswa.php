@@ -17,7 +17,7 @@ class Mahasiswa extends Model
         'jurusan',
         'jenis_kelamin',
         'face_descriptor',
-        'users_id'
+        'users_id',
     ];
 
     public function users()
