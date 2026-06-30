@@ -7,6 +7,7 @@ let currentLat = null;
 let currentLng = null;
 let blinkCount = 0;
 let isEyeClosed = false;
+let isLockingGreen = false; // Untuk menahan kotak hijau agar tidak langsung hilang/berubah
 
 var lokasi = document.getElementById("lokasi");
 
@@ -143,7 +144,6 @@ async function startVideo() {
             return (p2_p6 + p3_p5) / (2.0 * p1_p4);
         }
 
-        // ⏱️ DIUBAH KE 200ms (0.2 detik) agar kedipan mata yang cepat bisa tertangkap kamera
         setInterval(async () => {
             const detections = await faceapi
                 .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
@@ -160,8 +160,11 @@ async function startVideo() {
 
             if (resizedDetections.length === 0) {
                 recognizedName = null;
-                blinkCount = 0;
-                isEyeClosed = false;
+                // Jika tidak ada wajah, matikan lock agar sistem reset
+                if (!isLockingGreen) {
+                    blinkCount = 0;
+                    isEyeClosed = false;
+                }
 
                 if (!unknownShown && !hasAbsen) {
                     unknownShown = true;
@@ -194,20 +197,15 @@ async function startVideo() {
                 const rightEAR = getEAR(rightEye);
                 const avgEAR = (leftEAR + rightEAR) / 2;
 
-                // 🔍 DEBUG: Buka inspect console di browser untuk melihat angka EAR mata Anda asli
-                console.log("Nilai EAR Saat ini:", avgEAR.toFixed(3));
-
-                // 👁️ Threshold dinaikkan sedikit ke 0.25 agar lebih responsif mendeteksi mata sayu/merem
-                if (avgEAR < 0.25) {
-                    isEyeClosed = true;
-                } else {
-                    if (isEyeClosed) {
-                        blinkCount++;
-                        isEyeClosed = false;
-                        console.log(
-                            " Kedipan berhasil dicatat! Jumlah:",
-                            blinkCount,
-                        );
+                // Hanya hitung kedipan jika sedang tidak dalam mode "mengunci kotak hijau"
+                if (!isLockingGreen) {
+                    if (avgEAR < 0.25) {
+                        isEyeClosed = true;
+                    } else {
+                        if (isEyeClosed) {
+                            blinkCount++;
+                            isEyeClosed = false;
+                        }
                     }
                 }
 
@@ -222,21 +220,24 @@ async function startVideo() {
                     } else {
                         unknownShown = false;
 
-                        if (blinkCount >= 1) {
+                        // 🟢 JIKA SUDAH BERKEDIP ATAU SEDANG DIKUNCI HIJAU
+                        if (blinkCount >= 1 || isLockingGreen) {
                             label = `${recognizedName} (${similarity}%) - Kedip OK!`;
                             boxColor = "green";
 
                             if (!isSubmitting && !hasAbsen) {
                                 isSubmitting = true;
-                                await sendAbsen("masuk");
+                                isLockingGreen = true; // 🔒 Kunci tampilan warna hijau
 
-                                setTimeout(() => {
+                                // Berikan jeda 1.5 detik (1500ms) agar user melihat kotak hijau dulu baru absen ditembak
+                                setTimeout(async () => {
+                                    await sendAbsen("masuk");
                                     isSubmitting = false;
-                                }, 5000);
+                                    isLockingGreen = false; // 🔓 Buka kunci setelah proses selesai
+                                }, 1500);
                             }
                         } else {
-                            // Tampilkan juga info petunjuk di teks box layar
-                            label = `Owner Valid (${similarity}%) | Silakan BERKEDIP!`;
+                            label = `${ownerName} (${similarity}%) | Silakan BERKEDIP!`;
                             boxColor = "orange";
                         }
                     }
@@ -244,7 +245,7 @@ async function startVideo() {
                     label = `Tidak dikenal (${similarity}%)`;
                     boxColor = "blue";
                     recognizedName = null;
-                    blinkCount = 0;
+                    if (!isLockingGreen) blinkCount = 0;
                 }
 
                 const drawBox = new faceapi.draw.DrawBox(box, {
@@ -253,7 +254,7 @@ async function startVideo() {
                 });
                 drawBox.draw(canvas);
             }
-        }, 200); // ⏱️ Pengambilan gambar dipercepat demi akurasi liveness kedipan
+        }, 200);
     });
 }
 

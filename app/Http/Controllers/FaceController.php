@@ -120,16 +120,16 @@ class FaceController extends Controller
         }
 
         // batas toleransi (10 menit)
-        $batasMasuk = $waktuMulai->copy()->addMinutes(10);
+        // $batasMasuk = $waktuMulai->copy()->addMinutes(10);
 
-        if ($sekarang->timestamp <= $batasMasuk->timestamp) {
-            $status = 'tidak terlambat';
-        } else {
-            return response()->json([
-                'status' => 'error terlambat',
-                'message' => 'Data ditolak karena lebih dari toleransi terlambat'
-            ], 422);
-        }
+        // if ($sekarang->timestamp <= $batasMasuk->timestamp) {
+        //     $status = 'tidak terlambat';
+        // } else {
+        //     return response()->json([
+        //         'status' => 'error terlambat',
+        //         'message' => 'Data ditolak karena lebih dari toleransi terlambat'
+        //     ], 422);
+        // }
 
 
         $result =    DB::table('riwayat_absensi')
@@ -137,7 +137,7 @@ class FaceController extends Controller
                 'krs_id' => $krs,
                 'absensi_masuk' => Carbon::now(),
                 'created_at' => Carbon::now(),
-                'status' => $status
+                // 'status' => $status
             ]);
 
         if ($result) {
