@@ -12,7 +12,7 @@ let blinkStartTime = null;
 let lastLandmarks = null;
 let stillFrameCount = 0;
 
-const BLINK_THRESHOLD = 0.25;
+const BLINK_THRESHOLD = 0.27;
 const REQUIRED_BLINKS = 3;
 const BLINK_TIMEOUT = 10000;
 const STILL_FRAME_LIMIT = 15;
@@ -25,22 +25,18 @@ if (navigator.geolocation) {
 }
 
 function successCallback(position) {
-    const lat = position.coords.latitude;
-    const lng = position.coords.longitude;
+    currentLat = position.coords.latitude;
+    currentLng = position.coords.longitude;
+    lokasi.value = currentLat + "," + currentLng;
 
-    currentLat = lat;
-    currentLng = lng;
-
-    lokasi.value = lat + "," + lng;
-
-    const map = L.map("map").setView([lat, lng], 15);
-
+    const map = L.map("map").setView([currentLat, currentLng], 15);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
-        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        attribution:
+            '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
 
-    L.marker([lat, lng]).addTo(map);
+    L.marker([currentLat, currentLng]).addTo(map);
     L.circle([-5.375329714761104, 105.24604359669844], {
         color: "red",
         fillColor: "#f03",
@@ -88,7 +84,7 @@ function detectStillFrame(landmarks) {
     for (let i = 0; i < count; i++) {
         totalMovement += Math.hypot(
             landmarks[i].x - lastLandmarks[i].x,
-            landmarks[i].y - lastLandmarks[i].y
+            landmarks[i].y - lastLandmarks[i].y,
         );
     }
     const avgMovement = totalMovement / count;
@@ -146,7 +142,9 @@ async function startVideo() {
     ownerName = video.getAttribute("data-nama");
 
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+        });
         video.srcObject = stream;
     } catch (err) {
         alert("Gagal akses kamera");
@@ -157,7 +155,10 @@ async function startVideo() {
         const canvas = faceapi.createCanvasFromMedia(video);
         document.getElementById("video-container").appendChild(canvas);
 
-        const displaySize = { width: video.videoWidth, height: video.videoHeight };
+        const displaySize = {
+            width: video.videoWidth,
+            height: video.videoHeight,
+        };
         faceapi.matchDimensions(canvas, displaySize);
 
         const labeledDescriptors = await loadLabeledDescriptors();
@@ -179,7 +180,10 @@ async function startVideo() {
                 .withFaceLandmarks()
                 .withFaceDescriptors();
 
-            const resizedDetections = faceapi.resizeResults(detections, displaySize);
+            const resizedDetections = faceapi.resizeResults(
+                detections,
+                displaySize,
+            );
             const ctx = canvas.getContext("2d");
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -202,7 +206,9 @@ async function startVideo() {
             }
 
             for (const detection of resizedDetections) {
-                const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
+                const bestMatch = faceMatcher.findBestMatch(
+                    detection.descriptor,
+                );
                 const box = detection.detection.box;
                 const similarity = ((1 - bestMatch.distance) * 100).toFixed(2);
 
@@ -213,7 +219,14 @@ async function startVideo() {
                 const leftEye = landmarks.getLeftEye();
                 const rightEye = landmarks.getRightEye();
                 const avgEAR = (getEAR(leftEye) + getEAR(rightEye)) / 2;
+                console.log(
+                    "EAR:",
+                    avgEAR.toFixed(3),
+                    "| BLINK_THRESHOLD:",
+                    BLINK_THRESHOLD,
+                );
 
+                // Check if face is a still photo (anti-spoofing)
                 const allPoints = landmarks.positions;
                 const isStill = detectStillFrame(allPoints);
 
@@ -231,14 +244,17 @@ async function startVideo() {
                     recognizedName = ownerName;
                     unknownShown = false;
 
+                    // Anti-spoofing: foto diam
                     if (isStill) {
                         label = `${ownerName} (${similarity}%) | Foto? Gerakkan kepala`;
                         boxColor = "purple";
                         if (!hasAbsen) resetBlinkUI();
 
+                        // BLINK DETECTION
                     } else if (!hasAbsen) {
                         if (!blinkStartTime) blinkStartTime = Date.now();
 
+                        // Timeout reset
                         if (Date.now() - blinkStartTime > BLINK_TIMEOUT) {
                             resetBlinkUI();
                             blinkStartTime = Date.now();
@@ -253,7 +269,11 @@ async function startVideo() {
                         }
 
                         const progress = Math.min(blinkCount, REQUIRED_BLINKS);
-                        updateBlinkUI(progress, `Kedip ${progress}/${REQUIRED_BLINKS}`, "#22c55e");
+                        updateBlinkUI(
+                            progress,
+                            `Kedip ${progress}/${REQUIRED_BLINKS}`,
+                            "#22c55e",
+                        );
 
                         if (blinkCount >= REQUIRED_BLINKS) {
                             label = `${ownerName} (${similarity}%) | ✅ Wajah terverifikasi!`;
@@ -261,7 +281,11 @@ async function startVideo() {
 
                             if (!isSubmitting) {
                                 isSubmitting = true;
-                                updateBlinkUI(REQUIRED_BLINKS, "✅ Verifikasi berhasil! Mengirim...", "#22c55e");
+                                updateBlinkUI(
+                                    REQUIRED_BLINKS,
+                                    "✅ Verifikasi berhasil! Mengirim...",
+                                    "#22c55e",
+                                );
 
                                 setTimeout(async () => {
                                     await sendAbsen("pulang");
@@ -278,7 +302,10 @@ async function startVideo() {
                     }
                 }
 
-                const drawBox = new faceapi.draw.DrawBox(box, { label, boxColor });
+                const drawBox = new faceapi.draw.DrawBox(box, {
+                    label,
+                    boxColor,
+                });
                 drawBox.draw(canvas);
             }
         }, 200);
@@ -312,24 +339,32 @@ async function sendAbsen(tipe) {
 
         if (result.status === "success") {
             hasAbsen = true;
-            updateBlinkUI(REQUIRED_BLINKS, "✅ Absen pulang berhasil! ✅", "#22c55e");
+            updateBlinkUI(REQUIRED_BLINKS, "✅ Absen berhasil! ✅", "#22c55e");
 
             Swal.fire({
                 toast: true,
                 position: "top-end",
                 icon: "success",
                 title: "Berhasil",
-                text: "Absen pulang disimpan",
+                text: "Absen disimpan",
                 timer: 6000,
                 showConfirmButton: false,
             });
 
             let countdown = 5;
-            updateBlinkUI(REQUIRED_BLINKS, `Redirect dalam ${countdown}...`, "#22c55e");
+            updateBlinkUI(
+                REQUIRED_BLINKS,
+                `Redirect dalam ${countdown}...`,
+                "#22c55e",
+            );
             const interval = setInterval(() => {
                 countdown--;
                 if (countdown > 0) {
-                    updateBlinkUI(REQUIRED_BLINKS, `Redirect dalam ${countdown}...`, "#22c55e");
+                    updateBlinkUI(
+                        REQUIRED_BLINKS,
+                        `Redirect dalam ${countdown}...`,
+                        "#22c55e",
+                    );
                 } else {
                     clearInterval(interval);
                     window.location.href = "/internal/krs";
@@ -375,6 +410,7 @@ async function sendAbsen(tipe) {
             position: "top-end",
             icon: "error",
             title: "Absensi gagal",
+            text: err.message || "Coba lagi",
             timer: 3000,
             showConfirmButton: false,
         });
@@ -386,7 +422,6 @@ async function sendAbsen(tipe) {
 async function loadLabeledDescriptors() {
     const res = await fetch("/internal/descriptors");
     const data = await res.json();
-
     const labeledDescriptors = [];
 
     data.forEach((user) => {
