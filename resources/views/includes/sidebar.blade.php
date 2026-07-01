@@ -13,8 +13,11 @@
 
 
 
-             <li class="menu-header">Master</li>
 
+             @if (Auth::user()->hasRole('super admin'))
+
+
+             <li class="menu-header">Master</li>
              <li><a class="nav-link" href="{{ route('fakultas') }}"><i class="fas fa-list"></i> <span>Fakultas</span></a></li>
 
 
@@ -27,11 +30,12 @@
 
 
 
-             <li><a class="nav-link" href="{{ route('mata-kuliah') }}"><i class="fas fa-book"></i> <span>Mata Kuliah</span></a></li>
-
-
-
              <li><a class="nav-link" href="{{ route('mahasiswa') }}"><i class="fas fa-user"></i> <span>Mahasiswa</span></a></li>
+
+             @else
+
+             @endif
+
 
 
 
@@ -47,6 +51,7 @@
              @endif
 
 
+             @if (Auth::user()->hasRole('super admin'))
              <li class="menu-header">Pengaturan</li>
 
 
@@ -58,6 +63,9 @@
 
 
              <li><a class="nav-link" href="{{ route('user') }}"><i class="fas fa-users"></i> <span>User</span></a></li>
+             @else
+
+             @endif
 
          </ul>
          <!--

@@ -10,9 +10,11 @@
         </div>
 
 
+        @if (Auth::user()->hasRole('super admin'))
         <a href="{{ route('mata-kuliah.tambah') }}" class="btn btn-sm btn-primary">
             <i class="fas fa-sm fa-plus-circle"></i> Tambah
         </a>
+        @endif
 
         <div class="card shadow mt-2">
             <div class="card-body">
