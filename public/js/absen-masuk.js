@@ -19,38 +19,58 @@ const STILL_FRAME_LIMIT = 15;
 
 const lokasi = document.getElementById("lokasi");
 
-// === GEOLOCATION ===
-if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(successCallback, errorCallback);
-}
+const CAMPUS_LAT = -5.375329714761104;
+const CAMPUS_LNG = 105.24604359669844;
 
-function successCallback(position) {
-    currentLat = position.coords.latitude;
-    currentLng = position.coords.longitude;
-    lokasi.value = currentLat + "," + currentLng;
+let map = null;
+let userMarker = null;
 
-    const map = L.map("map").setView([currentLat, currentLng], 15);
+const ZOOM =  13;
+
+function initMap(lat, lng) {
+    if (map) return;
+    map = L.map("map", { zoomControl: true }).setView([lat, lng], ZOOM);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
-
-    L.marker([currentLat, currentLng]).addTo(map);
-    L.circle([-5.375329714761104, 105.24604359669844], {
+    L.circle([CAMPUS_LAT, CAMPUS_LNG], {
         color: "red",
         fillColor: "#f03",
         fillOpacity: 0.5,
         radius: 50,
     }).addTo(map);
+    map.invalidateSize();
 }
 
-function errorCallback(err) {
-    console.log(err);
-    lokasi.value = "Gagal ambil lokasi";
+function updateUserMarker(lat, lng) {
+    if (userMarker) {
+        userMarker.setLatLng([lat, lng]);
+    } else {
+        userMarker = L.marker([lat, lng]).addTo(map);
+    }
+    map.setView([lat, lng], ZOOM);
 }
 
 // === LOAD ===
 window.addEventListener("DOMContentLoaded", async () => {
+    initMap(CAMPUS_LAT, CAMPUS_LNG);
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                currentLat = position.coords.latitude;
+                currentLng = position.coords.longitude;
+                lokasi.value = currentLat + "," + currentLng;
+                updateUserMarker(currentLat, currentLng);
+            },
+            (err) => {
+                console.log(err);
+                lokasi.value = "Gagal ambil lokasi";
+            }
+        );
+    }
+
     await loadModels();
     await startVideo();
     createBlinkUI();
@@ -133,6 +153,13 @@ function resetBlinkUI() {
     blinkCount = 0;
     blinkStartTime = null;
     updateBlinkUI(0, "Menunggu wajah...", "#888");
+}
+
+function resetVerification() {
+    resetBlinkUI();
+    recognizedName = null;
+    isEyeClosed = false;
+    isSubmitting = false;
 }
 
 // === KAMERA ===
@@ -340,6 +367,7 @@ async function sendAbsen(tipe) {
         }
 
         if (result.status === "error radius") {
+            resetVerification();
             Swal.fire({
                 icon: "error",
                 title: "Maaf",
@@ -347,9 +375,9 @@ async function sendAbsen(tipe) {
                 timer: 3000,
                 showConfirmButton: true,
             });
-            isSubmitting = false;
         }
         if (result.status === "error belum mulai") {
+            resetVerification();
             Swal.fire({
                 icon: "error",
                 title: "Maaf",
@@ -357,7 +385,6 @@ async function sendAbsen(tipe) {
                 timer: 3000,
                 showConfirmButton: true,
             });
-            isSubmitting = false;
         }
     } catch (err) {
         Swal.fire({
