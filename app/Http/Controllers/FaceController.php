@@ -13,14 +13,12 @@ class FaceController extends Controller
     public function halaman_absen_masuk($id)
     {
         $krs = DB::table('krs')
-            ->select('krs.*', 'mahasiswa.nama as nama_mahasiswa', 'mata_kuliah.*', 'jurusan.nama as nama_jurusan', 'dosen.nama_lengkap as dosen')
+            ->select('krs.id as krs_id', 'krs.*', 'mahasiswa.nama as nama_mahasiswa', 'mata_kuliah.*', 'jurusan.nama as nama_jurusan', 'dosen.nama_lengkap as dosen')
             ->join('mahasiswa', 'mahasiswa.id', '=', 'krs.mahasiswa_id')
             ->join('mata_kuliah', 'mata_kuliah.id', '=', 'krs.mata_kuliah_id')
             ->join('jurusan', 'jurusan.id', '=', 'mata_kuliah.jurusan_id')
             ->join('dosen', 'dosen.id', '=', 'mata_kuliah.dosen_id')
             ->where('krs.id', $id)->first();
-
-        // dd($krs);
 
         return view('pages.face-recogination.absen-masuk', [
             'krs' => $krs,
@@ -86,9 +84,14 @@ class FaceController extends Controller
             ->where('krs.id', $krs)
             ->first();
 
+        // dd($detail_krs);
+
         $latUser = $request->currentLatUser;
         $lngUser = $request->currentLngUser;
-        $latKelas = -5.375329714761104;
+
+        // $latKelas = $request->currentLatUser;
+        // $lngKelas = $request->currentLngUser;
+          $latKelas = -5.375329714761104;
         $lngKelas = 105.24604359669844;
 
         $radius = round($this->distance($latUser, $lngUser, $latKelas, $lngKelas)['meters']);

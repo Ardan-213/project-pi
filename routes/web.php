@@ -95,12 +95,16 @@ Route::prefix('internal')
             ->name('mata-kuliah.data');
         Route::get('mata-kuliah/tambah', [MataKuliahController::class, 'tambah'])
             ->name('mata-kuliah.tambah');
+        Route::get('mata-kuliah/edit/{id}', [MataKuliahController::class, 'edit'])
+            ->name('mata-kuliah.edit');
         Route::get('mata-kuliah/listJurusan', [MataKuliahController::class, 'listJurusan'])
             ->name('mata-kuliah.listJurusan');
         Route::get('mata-kuliah/listDosenByJurusan', [MataKuliahController::class, 'listDosenByJurusan'])
             ->name('mata-kuliah.listDosenByJurusan');
         Route::post('mata-kuliah/simpan', [MataKuliahController::class, 'simpan'])
             ->name('mata-kuliah.simpan');
+        Route::post('mata-kuliah/update/{id}', [MataKuliahController::class, 'update'])
+            ->name('mata-kuliah.update');
         Route::post('mata-kuliah/hapus', [MataKuliahController::class, 'hapus'])
             ->name('mata-kuliah.hapus');
 

@@ -32,7 +32,7 @@ class MataKuliahController extends Controller
                         $button = '
         <div class="d-flex justify-content-start">
 
-            <a href="#" class="badge bg-primary text-white ambil-mk ambil_mata_kuliah" data-id="'.$data->id.'">
+            <a href="#" class="badge bg-primary text-white ambil-mk ambil_mata_kuliah" data-id="' . $data->id . '">
                 <i class="fas fa-sm fa-pencil-alt"></i> Ambil Mata Kuliah
             </a>
         </div>';
@@ -40,10 +40,10 @@ class MataKuliahController extends Controller
 
                         $button = '
         <div class="d-flex justify-content-start">
-            <a href="'.route('jurusan.edit', $data->id).'" class="badge bg-warning text-white me-1">
+            <a href="' . route('mata-kuliah.edit', $data->id) . '" class="badge bg-warning text-white me-1">
                 <i class="fas fa-sm fa-edit"></i> Edit
             </a>
-            <a href="#" class="badge bg-danger text-white mx-1 hapus" data-id="'.$data->id.'">
+            <a href="#" class="badge bg-danger text-white mx-1 hapus" data-id="' . $data->id . '">
                 <i class="fas fa-sm fa-trash-alt"></i> Hapus
             </a>
 
@@ -61,6 +61,16 @@ class MataKuliahController extends Controller
     public function tambah()
     {
         return view('pages.mata-kuliah.tambah');
+    }
+
+
+    public function edit($id)
+    {
+        $mata_kuliah = MataKuliah:: with(['jurusan', 'dosen'])->find($id);
+
+        return view('pages.mata-kuliah.edit', [
+            'mata_kuliah' => $mata_kuliah
+        ]);
     }
 
     public function simpan(Request $request)
@@ -87,10 +97,10 @@ class MataKuliahController extends Controller
     public function listJurusan(Request $request)
     {
         $data = $request->has('q')
-            ? Jurusan::where('nama', 'LIKE', '%'.$request->q.'%')->get()
+            ? Jurusan::where('nama', 'LIKE', '%' . $request->q . '%')->get()
             : Jurusan::all();
 
-        return response()->json($data->map(fn ($d) => ['id' => $d->id, 'text' => $d->nama]));
+        return response()->json($data->map(fn($d) => ['id' => $d->id, 'text' => $d->nama]));
     }
 
     public function listDosenByJurusan(Request $request)
@@ -98,10 +108,31 @@ class MataKuliahController extends Controller
         $query = Dosen::where('jurusan_id', $request->jurusan_id);
 
         if ($request->has('q')) {
-            $query->where('nama_lengkap', 'LIKE', '%'.$request->q.'%');
+            $query->where('nama_lengkap', 'LIKE', '%' . $request->q . '%');
         }
 
-        return response()->json($query->get()->map(fn ($d) => ['id' => $d->id, 'text' => $d->nama_lengkap]));
+        return response()->json($query->get()->map(fn($d) => ['id' => $d->id, 'text' => $d->nama_lengkap]));
+    }
+
+    public function update($id, Request $request)
+    {
+        $mata_kuliah = MataKuliah::findOrFail($id);
+        $mata_kuliah->kode = $request->kode;
+        $mata_kuliah->nama_mata_kuliah = $request->nama_mata_kuliah;
+        $mata_kuliah->jurusan_id = $request->jurusan;
+        $mata_kuliah->dosen_id = $request->dosen;
+        $mata_kuliah->sks = $request->sks;
+        $mata_kuliah->ruangan = $request->ruangan;
+        $mata_kuliah->hari = $request->hari;
+        $mata_kuliah->waktu_mulai = $request->waktu_mulai;
+        $mata_kuliah->waktu_selesai = $request->waktu_selesai;
+        $mata_kuliah->kuota_orang = $request->kuota_orang;
+        $mata_kuliah->save();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Data berhasil diubah',
+        ], 200);
     }
 
     public function hapus(Request $request)

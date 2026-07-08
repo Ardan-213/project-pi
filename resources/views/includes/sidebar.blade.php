@@ -29,7 +29,7 @@
              <li><a class="nav-link" href="{{ route('dosen') }}"><i class="fas fa-user"></i> <span>Dosen</span></a></li>
 
 
-
+             <li><a class="nav-link" href="{{ route('mata-kuliah') }}"><i class="fas fa-book"></i> <span>Mata Kuliah</span></a></li>
              <li><a class="nav-link" href="{{ route('mahasiswa') }}"><i class="fas fa-user"></i> <span>Mahasiswa</span></a></li>
 
              @else

@@ -21,7 +21,7 @@
                             <input type="hidden" id="lokasi">
 
                             <div id="video-container">
-                                <video id="video" data-krs="{{ $krs->id }}" data-nama="{{ $krs->nama_mahasiswa }}" autoplay muted></video>
+                                <video id="video" data-krs="{{ $krs->krs_id }}" data-nama="{{ $krs->nama_mahasiswa }}" autoplay muted></video>
                             </div>
 
                             <div id="map"></div>
