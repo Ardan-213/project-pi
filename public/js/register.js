@@ -107,9 +107,19 @@ async function registerFace() {
 
         const result = await response.json();
         if (result.status === "success") {
-            alert("Wajah berhasil didaftarkan.");
+            Swal.fire({
+                icon: "success",
+                title: "Berhasil",
+                text: "Wajah berhasil didaftarkan.",
+                timer: 2000,
+                showConfirmButton: false,
+            });
         } else {
-            alert("Gagal mendaftarkan wajah.");
+            Swal.fire({
+                icon: "error",
+                title: "Gagal",
+                text: "Gagal mendaftarkan wajah.",
+            });
         }
     } catch (error) {
         console.error("Error saat mengirim data:", error);

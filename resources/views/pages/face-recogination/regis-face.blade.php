@@ -1,95 +1,115 @@
-<!DOCTYPE html>
-<html lang="en">
+@extends('layouts.be')
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Registrasi Wajah</title>
-    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-    <script defer src="/js/register.js"></script> <!-- file JS yang akan kamu isi -->
-</head>
+@section('title', 'Registrasi Wajah')
+@section('content')
 
-<body>
-
-    <style>
-        body,
-        html {
-            height: 100%;
-            margin: 0;
-        }
-
-        /* body {
-            display: flex;
-            justify-content: ;
-            align-items: center;
-            background-color: #f0f0f0;
-        } */
-
-        .center-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        #video-container {
-            position: relative;
-            display: inline-block;
-        }
-
-        .button-container {
-            margin-top: 20px;
-        }
-
-        button {
-            margin: 0 5px;
-            padding: 8px 16px;
-        }
-
-        #video-container video,
-        #video-container canvas {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        #video-container canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            pointer-events: none;
-            /* agar tidak mengganggu klik */
-        }
-    </style>
-
-    <div class="center-container">
-        <h1>Registrasi Wajah</h1>
-        <div id="video-container">
-            <video id="video" width="640" height="480" autoplay muted></video>
-            <!-- <div id="light-warning" style="
-    display: none;
-    background: rgba(255, 0, 0, 0.8);
-    color: white;
-    padding: 10px;
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    z-index: 1000;
-    border-radius: 5px;
-">
-                Cahaya terlalu gelap, harap pindah ke lokasi yang lebih terang.
-            </div> -->
+<div class="main-content">
+    <section class="section">
+        <div class="section-header">
+            <h1>Registrasi Wajah</h1>
         </div>
 
-        <div class="button-container">
-            <button onclick="registerFace()">Daftarkan Wajah</button>
+        <a href="{{ route('krs') }}" class="btn btn-sm btn-primary mb-3">
+            <i class="fas fa-sm fa-arrow-left"></i> Kembali
+        </a>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card shadow mt-2">
+                    <div class="card-body text-center">
+                        <div class="center-container">
+                            <div id="video-container">
+                                <video id="video" data-nama="{{ $mahasiswa->nama }}" data-npm="{{ $mahasiswa->npm }}" autoplay muted></video>
+                            </div>
+
+                            <div class="button-container mt-3">
+                                <button class="btn btn-primary" onclick="registerFace()">
+                                    <i class="fas fa-camera"></i> Daftarkan Wajah
+                                </button>
+                            </div>
+
+                            <div id="status" class="mt-3"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card shadow mt-2">
+                    <div class="card-body">
+                        <h5 class="card-title">Informasi Mahasiswa</h5>
+                        <table class="table table-bordered">
+                            <tr>
+                                <th>Nama</th>
+                                <td>{{ $mahasiswa->nama }}</td>
+                            </tr>
+                            <tr>
+                                <th>NPM</th>
+                                <td>{{ $mahasiswa->npm }}</td>
+                            </tr>
+                        </table>
+
+                        <hr>
+
+                        <h5>Petunjuk</h5>
+                        <ul class="pl-3">
+                            <li>Pastikan pencahayaan cukup</li>
+                            <li>Hadapkan wajah penuh ke kamera</li>
+                            <li>Hindari aksesoris yang menutupi wajah</li>
+                            <li>Klik tombol <strong>Daftarkan Wajah</strong> untuk menyimpan</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
+    </section>
+</div>
 
-    <div id="video-container" style="position: relative; display: inline-block;">
-        <video id="video" data-nama="{{ $mahasiswa->nama }}" data-npm="{{ $mahasiswa->npm }}" width="640" height="480" autoplay muted></video>
-    </div>
-    <br>
+@endsection
 
-</body>
+@push('style')
+<style>
+    .center-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+    }
 
-</html>
+    #video-container {
+        position: relative;
+        width: 100%;
+    }
+
+    #video-container video {
+        width: 100%;
+        height: auto;
+        display: block;
+        border-radius: 8px;
+    }
+
+    #video-container canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+
+    .button-container {
+        width: 100%;
+    }
+
+    .button-container .btn {
+        width: 100%;
+        padding: 10px;
+        font-size: 1.1rem;
+    }
+</style>
+@endpush
+
+@push('script')
+<script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script defer src="/js/register.js"></script>
+@endpush
