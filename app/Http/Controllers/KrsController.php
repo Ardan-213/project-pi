@@ -50,6 +50,9 @@ class KrsController extends Controller
             $tahunAkademik = $semesterInfo['tahun_akademik'];
 
             $mahasiswa = Mahasiswa::where('users_id', Auth::user()->id)->first();
+            if (!$mahasiswa) {
+                return response()->json(['data' => []]);
+            }
 
             $data = Krs::with(['mata_kuliah'])
                 ->where('mahasiswa_id', $mahasiswa->id)

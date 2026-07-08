@@ -14,7 +14,7 @@
 
 
 
-             @if (Auth::user()->hasRole('super admin'))
+             @if (Auth::check() && Auth::user()->hasRole('super admin'))
 
 
              <li class="menu-header">Master</li>
@@ -40,7 +40,7 @@
 
 
 
-             @if (Auth::user()->hasRole('super admin'))
+             @if (Auth::check() && Auth::user()->hasRole('super admin'))
 
              @else
              <li class="menu-header">Akademik</li>
@@ -51,7 +51,7 @@
              @endif
 
 
-             @if (Auth::user()->hasRole('super admin'))
+             @if (Auth::check() && Auth::user()->hasRole('super admin'))
              <li class="menu-header">Pengaturan</li>
 
 

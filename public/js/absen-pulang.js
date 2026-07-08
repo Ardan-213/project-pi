@@ -19,39 +19,58 @@ const STILL_FRAME_LIMIT = 15;
 
 const lokasi = document.getElementById("lokasi");
 
-// === GEOLOCATION ===
-if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(successCallback, errorCallback);
-}
+const CAMPUS_LAT = -5.375329714761104;
+const CAMPUS_LNG = 105.24604359669844;
 
-function successCallback(position) {
-    currentLat = position.coords.latitude;
-    currentLng = position.coords.longitude;
-    lokasi.value = currentLat + "," + currentLng;
+let map = null;
+let userMarker = null;
 
-    const map = L.map("map").setView([currentLat, currentLng], 15);
+const ZOOM =  13;
+
+function initMap(lat, lng) {
+    if (map) return;
+    map = L.map("map", { zoomControl: true }).setView([lat, lng], ZOOM);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
-        attribution:
-            '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
-
-    L.marker([currentLat, currentLng]).addTo(map);
-    L.circle([-5.375329714761104, 105.24604359669844], {
+    L.circle([CAMPUS_LAT, CAMPUS_LNG], {
         color: "red",
         fillColor: "#f03",
         fillOpacity: 0.5,
         radius: 50,
     }).addTo(map);
+    map.invalidateSize();
 }
 
-function errorCallback(err) {
-    console.log(err);
-    lokasi.value = "Gagal ambil lokasi";
+function updateUserMarker(lat, lng) {
+    if (userMarker) {
+        userMarker.setLatLng([lat, lng]);
+    } else {
+        userMarker = L.marker([lat, lng]).addTo(map);
+    }
+    map.setView([lat, lng], ZOOM);
 }
 
 // === LOAD ===
 window.addEventListener("DOMContentLoaded", async () => {
+    initMap(CAMPUS_LAT, CAMPUS_LNG);
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                currentLat = position.coords.latitude;
+                currentLng = position.coords.longitude;
+                lokasi.value = currentLat + "," + currentLng;
+                updateUserMarker(currentLat, currentLng);
+            },
+            (err) => {
+                console.log(err);
+                lokasi.value = "Gagal ambil lokasi";
+            }
+        );
+    }
+
     await loadModels();
     await startVideo();
     createBlinkUI();
@@ -84,7 +103,7 @@ function detectStillFrame(landmarks) {
     for (let i = 0; i < count; i++) {
         totalMovement += Math.hypot(
             landmarks[i].x - lastLandmarks[i].x,
-            landmarks[i].y - lastLandmarks[i].y,
+            landmarks[i].y - lastLandmarks[i].y
         );
     }
     const avgMovement = totalMovement / count;
@@ -136,15 +155,20 @@ function resetBlinkUI() {
     updateBlinkUI(0, "Menunggu wajah...", "#888");
 }
 
+function resetVerification() {
+    resetBlinkUI();
+    recognizedName = null;
+    isEyeClosed = false;
+    isSubmitting = false;
+}
+
 // === KAMERA ===
 async function startVideo() {
     const video = document.getElementById("video");
     ownerName = video.getAttribute("data-nama");
 
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-        });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         video.srcObject = stream;
     } catch (err) {
         alert("Gagal akses kamera");
@@ -155,10 +179,7 @@ async function startVideo() {
         const canvas = faceapi.createCanvasFromMedia(video);
         document.getElementById("video-container").appendChild(canvas);
 
-        const displaySize = {
-            width: video.videoWidth,
-            height: video.videoHeight,
-        };
+        const displaySize = { width: video.videoWidth, height: video.videoHeight };
         faceapi.matchDimensions(canvas, displaySize);
 
         const labeledDescriptors = await loadLabeledDescriptors();
@@ -180,10 +201,7 @@ async function startVideo() {
                 .withFaceLandmarks()
                 .withFaceDescriptors();
 
-            const resizedDetections = faceapi.resizeResults(
-                detections,
-                displaySize,
-            );
+            const resizedDetections = faceapi.resizeResults(detections, displaySize);
             const ctx = canvas.getContext("2d");
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -206,9 +224,7 @@ async function startVideo() {
             }
 
             for (const detection of resizedDetections) {
-                const bestMatch = faceMatcher.findBestMatch(
-                    detection.descriptor,
-                );
+                const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
                 const box = detection.detection.box;
                 const similarity = ((1 - bestMatch.distance) * 100).toFixed(2);
 
@@ -219,12 +235,7 @@ async function startVideo() {
                 const leftEye = landmarks.getLeftEye();
                 const rightEye = landmarks.getRightEye();
                 const avgEAR = (getEAR(leftEye) + getEAR(rightEye)) / 2;
-                console.log(
-                    "EAR:",
-                    avgEAR.toFixed(3),
-                    "| BLINK_THRESHOLD:",
-                    BLINK_THRESHOLD,
-                );
+                console.log('EAR:', avgEAR.toFixed(3), '| BLINK_THRESHOLD:', BLINK_THRESHOLD);
 
                 // Check if face is a still photo (anti-spoofing)
                 const allPoints = landmarks.positions;
@@ -250,7 +261,7 @@ async function startVideo() {
                         boxColor = "purple";
                         if (!hasAbsen) resetBlinkUI();
 
-                        // BLINK DETECTION
+                    // BLINK DETECTION
                     } else if (!hasAbsen) {
                         if (!blinkStartTime) blinkStartTime = Date.now();
 
@@ -269,11 +280,7 @@ async function startVideo() {
                         }
 
                         const progress = Math.min(blinkCount, REQUIRED_BLINKS);
-                        updateBlinkUI(
-                            progress,
-                            `Kedip ${progress}/${REQUIRED_BLINKS}`,
-                            "#22c55e",
-                        );
+                        updateBlinkUI(progress, `Kedip ${progress}/${REQUIRED_BLINKS}`, "#22c55e");
 
                         if (blinkCount >= REQUIRED_BLINKS) {
                             label = `${ownerName} (${similarity}%) | ✅ Wajah terverifikasi!`;
@@ -281,11 +288,7 @@ async function startVideo() {
 
                             if (!isSubmitting) {
                                 isSubmitting = true;
-                                updateBlinkUI(
-                                    REQUIRED_BLINKS,
-                                    "✅ Verifikasi berhasil! Mengirim...",
-                                    "#22c55e",
-                                );
+                                updateBlinkUI(REQUIRED_BLINKS, "✅ Verifikasi berhasil! Mengirim...", "#22c55e");
 
                                 setTimeout(async () => {
                                     await sendAbsen("pulang");
@@ -303,8 +306,7 @@ async function startVideo() {
                 }
 
                 const drawBox = new faceapi.draw.DrawBox(box, {
-                    label,
-                    boxColor,
+                    label, boxColor,
                 });
                 drawBox.draw(canvas);
             }
@@ -352,19 +354,11 @@ async function sendAbsen(tipe) {
             });
 
             let countdown = 5;
-            updateBlinkUI(
-                REQUIRED_BLINKS,
-                `Redirect dalam ${countdown}...`,
-                "#22c55e",
-            );
+            updateBlinkUI(REQUIRED_BLINKS, `Redirect dalam ${countdown}...`, "#22c55e");
             const interval = setInterval(() => {
                 countdown--;
                 if (countdown > 0) {
-                    updateBlinkUI(
-                        REQUIRED_BLINKS,
-                        `Redirect dalam ${countdown}...`,
-                        "#22c55e",
-                    );
+                    updateBlinkUI(REQUIRED_BLINKS, `Redirect dalam ${countdown}...`, "#22c55e");
                 } else {
                     clearInterval(interval);
                     window.location.href = "/internal/krs";
@@ -372,7 +366,8 @@ async function sendAbsen(tipe) {
             }, 1000);
         }
 
-        if (result.status === "error belum pulang") {
+        if (result.status === "error radius") {
+            resetVerification();
             Swal.fire({
                 icon: "error",
                 title: "Maaf",
@@ -380,7 +375,16 @@ async function sendAbsen(tipe) {
                 timer: 3000,
                 showConfirmButton: true,
             });
-            isSubmitting = false;
+        }
+        if (result.status === "error belum pulang") {
+            resetVerification();
+            Swal.fire({
+                icon: "error",
+                title: "Maaf",
+                text: result.message,
+                timer: 3000,
+                showConfirmButton: true,
+            });
         }
         if (result.status === "error sudah absen pulang") {
             Swal.fire({
@@ -392,17 +396,6 @@ async function sendAbsen(tipe) {
                 timer: 3000,
                 showConfirmButton: true,
             });
-            isSubmitting = false;
-        }
-        if (result.status === "error radius") {
-            Swal.fire({
-                icon: "error",
-                title: "Maaf",
-                text: result.message,
-                timer: 2000,
-                showConfirmButton: true,
-            });
-            isSubmitting = false;
         }
     } catch (err) {
         Swal.fire({
@@ -427,9 +420,7 @@ async function loadLabeledDescriptors() {
     data.forEach((user) => {
         if (!user.descriptor || user.descriptor.length !== 128) return;
         labeledDescriptors.push(
-            new faceapi.LabeledFaceDescriptors(user.name, [
-                new Float32Array(user.descriptor),
-            ]),
+            new faceapi.LabeledFaceDescriptors(user.name, [new Float32Array(user.descriptor)])
         );
     });
 
