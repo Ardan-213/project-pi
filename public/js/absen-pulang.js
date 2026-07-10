@@ -40,14 +40,19 @@ function initMap(lat, lng) {
         fillOpacity: 0.5,
         radius: 50,
     }).addTo(map);
-    map.invalidateSize();
+    setTimeout(() => map.invalidateSize(), 150);
 }
 
 function updateUserMarker(lat, lng) {
     if (userMarker) {
         userMarker.setLatLng([lat, lng]);
     } else {
-        userMarker = L.marker([lat, lng]).addTo(map);
+        userMarker = L.marker([lat, lng], {
+            radius: 8,
+            color: "#3388ff",
+            fillColor: "#3388ff",
+            fillOpacity: 0.8,
+        }).addTo(map);
     }
     map.setView([lat, lng], ZOOM);
 }
@@ -67,7 +72,13 @@ window.addEventListener("DOMContentLoaded", async () => {
             (err) => {
                 console.log(err);
                 lokasi.value = "Gagal ambil lokasi";
-            }
+                Swal.fire({
+                    icon: "warning",
+                    title: "Lokasi tidak ditemukan",
+                    text: "Izinkan akses lokasi di browser Anda",
+                });
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
     }
 

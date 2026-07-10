@@ -25,14 +25,15 @@ const CAMPUS_LNG = 105.24604359669844;
 let map = null;
 let userMarker = null;
 
-const ZOOM =  13;
+const ZOOM = 13;
 
 function initMap(lat, lng) {
     if (map) return;
     map = L.map("map", { zoomControl: true }).setView([lat, lng], ZOOM);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
-        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        attribution:
+            '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
     L.circle([CAMPUS_LAT, CAMPUS_LNG], {
         color: "red",
@@ -40,14 +41,19 @@ function initMap(lat, lng) {
         fillOpacity: 0.5,
         radius: 50,
     }).addTo(map);
-    map.invalidateSize();
+    setTimeout(() => map.invalidateSize(), 150);
 }
 
 function updateUserMarker(lat, lng) {
     if (userMarker) {
         userMarker.setLatLng([lat, lng]);
     } else {
-        userMarker = L.marker([lat, lng]).addTo(map);
+        userMarker = L.marker   ([lat, lng], {
+            radius: 8,
+            color: "#3388ff",
+            fillColor: "#3388ff",
+            fillOpacity: 0.8,
+        }).addTo(map);
     }
     map.setView([lat, lng], ZOOM);
 }
@@ -67,7 +73,13 @@ window.addEventListener("DOMContentLoaded", async () => {
             (err) => {
                 console.log(err);
                 lokasi.value = "Gagal ambil lokasi";
-            }
+                Swal.fire({
+                    icon: "warning",
+                    title: "Lokasi tidak ditemukan",
+                    text: "Izinkan akses lokasi di browser Anda",
+                });
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
         );
     }
 
@@ -103,7 +115,7 @@ function detectStillFrame(landmarks) {
     for (let i = 0; i < count; i++) {
         totalMovement += Math.hypot(
             landmarks[i].x - lastLandmarks[i].x,
-            landmarks[i].y - lastLandmarks[i].y
+            landmarks[i].y - lastLandmarks[i].y,
         );
     }
     const avgMovement = totalMovement / count;
@@ -168,7 +180,9 @@ async function startVideo() {
     ownerName = video.getAttribute("data-nama");
 
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+        });
         video.srcObject = stream;
     } catch (err) {
         alert("Gagal akses kamera");
@@ -179,7 +193,10 @@ async function startVideo() {
         const canvas = faceapi.createCanvasFromMedia(video);
         document.getElementById("video-container").appendChild(canvas);
 
-        const displaySize = { width: video.videoWidth, height: video.videoHeight };
+        const displaySize = {
+            width: video.videoWidth,
+            height: video.videoHeight,
+        };
         faceapi.matchDimensions(canvas, displaySize);
 
         const labeledDescriptors = await loadLabeledDescriptors();
@@ -201,7 +218,10 @@ async function startVideo() {
                 .withFaceLandmarks()
                 .withFaceDescriptors();
 
-            const resizedDetections = faceapi.resizeResults(detections, displaySize);
+            const resizedDetections = faceapi.resizeResults(
+                detections,
+                displaySize,
+            );
             const ctx = canvas.getContext("2d");
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -224,7 +244,9 @@ async function startVideo() {
             }
 
             for (const detection of resizedDetections) {
-                const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
+                const bestMatch = faceMatcher.findBestMatch(
+                    detection.descriptor,
+                );
                 const box = detection.detection.box;
                 const similarity = ((1 - bestMatch.distance) * 100).toFixed(2);
 
@@ -235,7 +257,12 @@ async function startVideo() {
                 const leftEye = landmarks.getLeftEye();
                 const rightEye = landmarks.getRightEye();
                 const avgEAR = (getEAR(leftEye) + getEAR(rightEye)) / 2;
-                console.log('EAR:', avgEAR.toFixed(3), '| BLINK_THRESHOLD:', BLINK_THRESHOLD);
+                console.log(
+                    "EAR:",
+                    avgEAR.toFixed(3),
+                    "| BLINK_THRESHOLD:",
+                    BLINK_THRESHOLD,
+                );
 
                 // Check if face is a still photo (anti-spoofing)
                 const allPoints = landmarks.positions;
@@ -261,7 +288,7 @@ async function startVideo() {
                         boxColor = "purple";
                         if (!hasAbsen) resetBlinkUI();
 
-                    // BLINK DETECTION
+                        // BLINK DETECTION
                     } else if (!hasAbsen) {
                         if (!blinkStartTime) blinkStartTime = Date.now();
 
@@ -280,7 +307,11 @@ async function startVideo() {
                         }
 
                         const progress = Math.min(blinkCount, REQUIRED_BLINKS);
-                        updateBlinkUI(progress, `Kedip ${progress}/${REQUIRED_BLINKS}`, "#22c55e");
+                        updateBlinkUI(
+                            progress,
+                            `Kedip ${progress}/${REQUIRED_BLINKS}`,
+                            "#22c55e",
+                        );
 
                         if (blinkCount >= REQUIRED_BLINKS) {
                             label = `${ownerName} (${similarity}%) | ✅ Wajah terverifikasi!`;
@@ -288,7 +319,11 @@ async function startVideo() {
 
                             if (!isSubmitting) {
                                 isSubmitting = true;
-                                updateBlinkUI(REQUIRED_BLINKS, "✅ Verifikasi berhasil! Mengirim...", "#22c55e");
+                                updateBlinkUI(
+                                    REQUIRED_BLINKS,
+                                    "✅ Verifikasi berhasil! Mengirim...",
+                                    "#22c55e",
+                                );
 
                                 setTimeout(async () => {
                                     await sendAbsen("masuk");
@@ -306,7 +341,8 @@ async function startVideo() {
                 }
 
                 const drawBox = new faceapi.draw.DrawBox(box, {
-                    label, boxColor,
+                    label,
+                    boxColor,
                 });
                 drawBox.draw(canvas);
             }
@@ -354,11 +390,19 @@ async function sendAbsen(tipe) {
             });
 
             let countdown = 5;
-            updateBlinkUI(REQUIRED_BLINKS, `Redirect dalam ${countdown}...`, "#22c55e");
+            updateBlinkUI(
+                REQUIRED_BLINKS,
+                `Redirect dalam ${countdown}...`,
+                "#22c55e",
+            );
             const interval = setInterval(() => {
                 countdown--;
                 if (countdown > 0) {
-                    updateBlinkUI(REQUIRED_BLINKS, `Redirect dalam ${countdown}...`, "#22c55e");
+                    updateBlinkUI(
+                        REQUIRED_BLINKS,
+                        `Redirect dalam ${countdown}...`,
+                        "#22c55e",
+                    );
                 } else {
                     clearInterval(interval);
                     window.location.href = "/internal/krs";
@@ -409,7 +453,9 @@ async function loadLabeledDescriptors() {
     data.forEach((user) => {
         if (!user.descriptor || user.descriptor.length !== 128) return;
         labeledDescriptors.push(
-            new faceapi.LabeledFaceDescriptors(user.name, [new Float32Array(user.descriptor)])
+            new faceapi.LabeledFaceDescriptors(user.name, [
+                new Float32Array(user.descriptor),
+            ]),
         );
     });
 
