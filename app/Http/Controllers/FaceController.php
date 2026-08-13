@@ -53,6 +53,14 @@ class FaceController extends Controller
     {
         try {
             $mahasiswa = Mahasiswa::where('users_id', Auth::user()->id)->first();
+
+            if ($mahasiswa->face_descriptor) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Wajah telah didaftarkan sebelumnya.',
+                ], 422);
+            }
+
             $mahasiswa->face_descriptor = json_encode($request->descriptor);
             $mahasiswa->save();
 
@@ -94,12 +102,12 @@ class FaceController extends Controller
 
         // $latKelas = $request->currentLatUser;
         // $lngKelas = $request->currentLngUser;
-          $latKelas = -5.375329714761104;
+        $latKelas = -5.375329714761104;
         $lngKelas = 105.24604359669844;
 
         $radius = round($this->distance($latUser, $lngUser, $latKelas, $lngKelas)['meters']);
 
-        if ($radius > 50) {
+        if ($radius > 100) {
             return response()->json([
                 'status' => 'error radius',
                 'message' => 'Anda diluar radius',

@@ -118,7 +118,7 @@ async function registerFace() {
             Swal.fire({
                 icon: "error",
                 title: "Gagal",
-                text: "Gagal mendaftarkan wajah.",
+                text: result.message,
             });
         }
     } catch (error) {
